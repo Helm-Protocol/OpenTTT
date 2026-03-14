@@ -1,24 +1,26 @@
 # TTT Smart Contract Deployments
 
-## Ethereum Sepolia v2 (2026-03-14) — 3rd Audit Remediation
+## Ethereum Sepolia v3 (2026-03-14) — 4th Audit (PAUSER_ROLE)
 
 | Contract | Address |
 |----------|---------|
-| TTT (ERC-1155 + AccessControl) | `0x8C633b05b833a476925F7d9818da6E215760F2c7` |
-| ProtocolFee (ERC-20 USDC + EIP-712) | `0x5DeB2888904c4f71879b8813352E903992ffECD3` |
+| TTT (ERC-1155 + MINTER_ROLE + PAUSER_ROLE) | `0x291b83F605F2dA95cf843d4a53983B413ef3B929` |
+| ProtocolFee (ERC-20 USDC + EIP-712) | `0x6b39D96741BB4Ce6283F824CC31c2931c75AEe64` |
 | Deployer/Treasury | `0x98603D935b6Ba2472a7cb48308e801F7ab6287f7` |
 
 **Etherscan Links:**
-- TTT: https://sepolia.etherscan.io/address/0x8C633b05b833a476925F7d9818da6E215760F2c7
-- ProtocolFee: https://sepolia.etherscan.io/address/0x5DeB2888904c4f71879b8813352E903992ffECD3
+- TTT: https://sepolia.etherscan.io/address/0x291b83F605F2dA95cf843d4a53983B413ef3B929
+- ProtocolFee: https://sepolia.etherscan.io/address/0x6b39D96741BB4Ce6283F824CC31c2931c75AEe64
 
-**Changes from v1 (2026-03-13):**
-- TTT.sol: `onlyOwner` → `onlyRole(MINTER_ROLE)` (AccessControl separation)
+**Changes from v1:**
+- TTT.sol: Ownable removed → AccessControl (MINTER_ROLE + PAUSER_ROLE)
 - ProtocolFee.sol: ETH → ERC-20 USDC, CollectFee EIP-712 typehash, sequential nonce
 
-## Previous Deployment (deprecated)
+## Previous Deployments (deprecated)
 
-| Contract | Address | Status |
-|----------|---------|--------|
-| TTT (ERC-1155) | `0xde357135cA493e59680182CDE9E1c6A4dA400811` | ❌ deprecated |
-| ProtocolFee | `0xE289337d3a79b22753BDA03510a8b8E4D1040F21` | ❌ deprecated |
+| Contract | Address | Version | Status |
+|----------|---------|---------|--------|
+| TTT v2 | `0x8C633b05b833a476925F7d9818da6E215760F2c7` | MINTER_ROLE only | ❌ deprecated |
+| ProtocolFee v2 | `0x5DeB2888904c4f71879b8813352E903992ffECD3` | ERC-20+EIP712 | ❌ deprecated |
+| TTT v1 | `0xde357135cA493e59680182CDE9E1c6A4dA400811` | onlyOwner | ❌ deprecated |
+| ProtocolFee v1 | `0xE289337d3a79b22753BDA03510a8b8E4D1040F21` | ETH+split sig | ❌ deprecated |
