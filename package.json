@@ -36,7 +36,8 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "test:coverage": "jest --coverage --forceExit"
+    "test:coverage": "jest --coverage --forceExit",
+    "verify": "cd contracts && npx hardhat verify --network"
   },
   "dependencies": {
     "buffer": "^6.0.3",
