@@ -14,6 +14,11 @@ export interface VerificationResult {
   latency: number;
 }
 
+export interface EVMConnectorOptions {
+  fallbackRpcUrls?: string[];
+  maxReconnectAttempts?: number;
+}
+
 export class EVMConnector {
   private provider: JsonRpcProvider | null = null;
   private signer: Signer | null = null;
@@ -24,7 +29,16 @@ export class EVMConnector {
   // P1-7: Timeout wrapper for gas estimation
   private static readonly GAS_TIMEOUT_MS = 5000;
 
-  constructor() {}
+  private primaryRpcUrl: string = "";
+  private fallbackRpcUrls: string[] = [];
+  private signerOrKey: string | Signer | null = null;
+  private maxReconnectAttempts: number;
+  private connected: boolean = false;
+
+  constructor(options?: EVMConnectorOptions) {
+    this.fallbackRpcUrls = options?.fallbackRpcUrls ?? [];
+    this.maxReconnectAttempts = options?.maxReconnectAttempts ?? 3;
+  }
 
   /**
    * P1-7: Race estimateGas against timeout to prevent DoS
@@ -41,7 +55,10 @@ export class EVMConnector {
    */
   async connect(rpcUrl: string, signerOrKey: string | Signer): Promise<void> {
     if (!rpcUrl || typeof rpcUrl !== "string") throw new TTTNetworkError("[EVM] Invalid RPC URL", "The provided RPC URL is empty or not a string", "Pass a valid RPC URL (e.g., https://mainnet.base.org)");
-    
+
+    this.primaryRpcUrl = rpcUrl;
+    this.signerOrKey = signerOrKey;
+
     try {
       this.provider = new JsonRpcProvider(rpcUrl);
       if (typeof signerOrKey === "string") {
@@ -50,16 +67,86 @@ export class EVMConnector {
         }
         this.signer = new ethers.Wallet(signerOrKey, this.provider);
       } else {
-        // Signer might already be connected to a provider, but we ensure it's linked to ours
         this.signer = signerOrKey.connect ? signerOrKey.connect(this.provider) : signerOrKey;
       }
-      
+
       const network = await this.provider.getNetwork();
+      this.connected = true;
       logger.info(`[EVM] Connected to Chain ID: ${network.chainId}`);
     } catch (error) {
       if (error instanceof TTTContractError || error instanceof TTTNetworkError) throw error;
+      // Try fallback RPCs before giving up
+      for (const fallback of this.fallbackRpcUrls) {
+        try {
+          logger.warn(`[EVM] Primary RPC failed, trying fallback: ${fallback}`);
+          this.provider = new JsonRpcProvider(fallback);
+          if (typeof signerOrKey === "string") {
+            this.signer = new ethers.Wallet(signerOrKey, this.provider);
+          } else {
+            this.signer = signerOrKey.connect ? signerOrKey.connect(this.provider) : signerOrKey;
+          }
+          const network = await this.provider.getNetwork();
+          this.connected = true;
+          logger.info(`[EVM] Connected via fallback to Chain ID: ${network.chainId}`);
+          return;
+        } catch {
+          continue;
+        }
+      }
       throw new TTTNetworkError(`[EVM] Connection failed`, error instanceof Error ? error.message : String(error), `Verify your RPC URL and network connectivity.`);
     }
+  }
+
+  /**
+   * Reconnect using stored credentials. Tries primary first, then fallbacks.
+   */
+  async reconnect(): Promise<void> {
+    if (!this.signerOrKey) throw new TTTNetworkError("[EVM] Cannot reconnect", "No previous connection credentials stored", "Call connect() first.");
+    this.disconnect();
+    const allUrls = [this.primaryRpcUrl, ...this.fallbackRpcUrls].filter(Boolean);
+    for (let attempt = 0; attempt < Math.min(this.maxReconnectAttempts, allUrls.length); attempt++) {
+      try {
+        const url = allUrls[attempt % allUrls.length];
+        logger.info(`[EVM] Reconnect attempt ${attempt + 1}/${this.maxReconnectAttempts} → ${url}`);
+        this.provider = new JsonRpcProvider(url);
+        if (typeof this.signerOrKey === "string") {
+          this.signer = new ethers.Wallet(this.signerOrKey, this.provider);
+        } else {
+          this.signer = this.signerOrKey.connect ? this.signerOrKey.connect(this.provider) : this.signerOrKey;
+        }
+        await this.provider.getNetwork();
+        this.connected = true;
+        logger.info(`[EVM] Reconnected successfully`);
+        return;
+      } catch {
+        logger.warn(`[EVM] Reconnect attempt ${attempt + 1} failed`);
+      }
+    }
+    this.connected = false;
+    throw new TTTNetworkError("[EVM] Reconnection failed", `All ${this.maxReconnectAttempts} attempts exhausted`, "Check RPC provider status and network connectivity.");
+  }
+
+  /**
+   * Disconnect and release all resources.
+   */
+  disconnect(): void {
+    this.unsubscribeAll();
+    if (this.provider) {
+      this.provider.destroy();
+    }
+    this.provider = null;
+    this.signer = null;
+    this.tttContract = null;
+    this.protocolFeeContract = null;
+    this.connected = false;
+    logger.info("[EVM] Disconnected and resources released");
+  }
+
+  /**
+   * Check if the connector is currently connected.
+   */
+  isConnected(): boolean {
+    return this.connected && this.provider !== null;
   }
 
   /**
