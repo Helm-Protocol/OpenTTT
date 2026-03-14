@@ -21,7 +21,15 @@ export interface Block {
   data: Uint8Array;
 }
 
-const TOLERANCE = 100; // 100ms tolerance for KTSat sync
+// const TOLERANCE = 100; // 100ms tolerance for KTSat sync (now configurable via constructor)
+
+/** Tier-based dynamic tolerance (ms) — auditor-requested upgrade */
+export const TIER_TOLERANCE_MS: Record<string, number> = {
+  T0_epoch: 2000,  // 6.4min tick → 2s tolerance
+  T1_block:  200,  // 2s tick → 200ms
+  T2_slot:   500,  // 12s tick → 500ms
+  T3_micro:   10,  // 100ms tick → 10ms (10%)
+};
 
 export class AdaptiveSwitch {
   private windowSize = 20; // B1-9: Updated from 10 to 20
@@ -33,14 +41,20 @@ export class AdaptiveSwitch {
   private consecutiveFailures = 0; // P2-1: Track consecutive failures for exponential backoff
   private turboEntryThreshold = 0.95; // P2-2: Hysteresis — stricter entry
   private turboMaintainThreshold = 0.85; // P2-2: Hysteresis — relaxed maintenance
+  private tolerance: number;
+
+  constructor(options?: { tolerance?: number }) {
+    this.tolerance = options?.tolerance ?? 100;
+  }
 
   /**
    * Core TTT mechanism: switches between Turbo/Full mode based on timestamp ordering match rate.
    */
-  verifyBlock(block: Block, tttRecord: TTTRecord, chainId: number = 1, poolAddress: string = "0x0000000000000000000000000000000000000000"): AdaptiveMode {
+  verifyBlock(block: Block, tttRecord: TTTRecord, chainId: number, poolAddress: string, tier?: string): AdaptiveMode {
     // 1. Check timestamp ordering and time match
     const orderMatch = this.compareTransactionOrder(block.txs, tttRecord.txOrder);
-    const timeMatch = Math.abs(block.timestamp - tttRecord.time) < TOLERANCE;
+    const tolerance = tier ? (TIER_TOLERANCE_MS[tier] ?? this.tolerance) : this.tolerance;
+    const timeMatch = Math.abs(block.timestamp - tttRecord.time) < tolerance;
     let sequenceOk = orderMatch && timeMatch;
 
     // B1-1: Do not skip GrgInverse.verify() in TURBO mode
@@ -128,6 +142,7 @@ export class AdaptiveSwitch {
       currentMode: this.currentMode,
       consecutiveFailures: this.consecutiveFailures,
       penaltyCooldown: this.penaltyCooldown,
+      tolerance: this.tolerance,
     });
   }
 
@@ -136,7 +151,7 @@ export class AdaptiveSwitch {
    */
   static deserialize(json: string): AdaptiveSwitch {
     const data = JSON.parse(json);
-    const instance = new AdaptiveSwitch();
+    const instance = new AdaptiveSwitch({ tolerance: data.tolerance ?? 100 });
     instance.history = data.history;
     instance.currentMode = data.currentMode;
     instance.consecutiveFailures = data.consecutiveFailures;

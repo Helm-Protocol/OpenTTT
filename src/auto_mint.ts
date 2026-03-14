@@ -36,7 +36,7 @@ export class AutoMintEngine {
   private maxConsecutiveFailures: number = 5;
   private potSigner: PotSigner | null = null;
   /** Monotonic counter appended to tokenId hash to prevent collision when two mints share the same nanosecond timestamp. */
-  private mintNonce: number = 0;
+  private mintNonce: bigint = 0n;
 
   constructor(config: AutoMintConfig) {
     this.config = config;
@@ -50,7 +50,9 @@ export class AutoMintEngine {
       this.cachedSigner = config.signer;
     }
     // Initialize Ed25519 PoT signer for non-repudiation
-    this.potSigner = new PotSigner();
+    this.potSigner = config.potSignerKeyPath
+      ? PotSigner.createOrLoad(config.potSignerKeyPath)
+      : new PotSigner();
   }
 
   public getEvmConnector(): EVMConnector {
@@ -239,11 +241,11 @@ export class AutoMintEngine {
     // 2. Generate tokenId (keccak256)
     // Unique ID based on chainId, poolAddress, timestamp, and a monotonic nonce
     // to prevent collision if two mints occur at the same nanosecond timestamp.
-    const nonceSuffix = this.mintNonce++;
+    const nonceSuffix = this.mintNonce; this.mintNonce++;
     const tokenId = ethers.keccak256(
       ethers.AbiCoder.defaultAbiCoder().encode(
         ["uint256", "address", "uint64", "uint256"],
-        [BigInt(this.config.chainId), this.config.poolAddress, synthesized.timestamp, BigInt(nonceSuffix)]
+        [BigInt(this.config.chainId), this.config.poolAddress, synthesized.timestamp, nonceSuffix]
       )
     );
 

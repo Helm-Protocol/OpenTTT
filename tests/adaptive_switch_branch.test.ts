@@ -115,6 +115,32 @@ describe("AdaptiveSwitch — uncovered branches", () => {
     expect(sw.getCurrentMode()).toBe(AdaptiveMode.TURBO);
   });
 
+  test("verifyBlock uses tier-based tolerance", () => {
+    const sw = new AdaptiveSwitch({ tolerance: 100 });
+    const now = Date.now();
+    const txsList = ["tx1", "tx2", "tx3"];
+    const data = new Uint8Array(12).fill(1);
+    const grgPl = GrgForward.encode(data, testChainId, testPoolAddress);
+
+    // Block timestamp is 50ms ahead of TTT record
+    const block: Block = { timestamp: now + 50, txs: txsList, data };
+    const record: TTTRecord = { time: now, txOrder: txsList, grgPayload: grgPl };
+
+    // T3_micro tolerance = 10ms → 50ms offset should FAIL timeMatch → sequenceOk=false
+    // Feed 20 blocks with T3_micro: all should fail timeMatch → stays FULL
+    for (let i = 0; i < 20; i++) {
+      sw.verifyBlock(block, record, testChainId, testPoolAddress, "T3_micro");
+    }
+    expect(sw.getCurrentMode()).toBe(AdaptiveMode.FULL);
+
+    // Reset and try with T1_block tolerance = 200ms → 50ms offset should PASS
+    sw.reset();
+    for (let i = 0; i < 20; i++) {
+      sw.verifyBlock(block, record, testChainId, testPoolAddress, "T1_block");
+    }
+    expect(sw.getCurrentMode()).toBe(AdaptiveMode.TURBO);
+  });
+
   test("reset clears all state", () => {
     const sw = new AdaptiveSwitch();
     const block: Block = { timestamp, txs, data: mockData };
