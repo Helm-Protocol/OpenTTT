@@ -1,58 +1,100 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.27;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/Nonces.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title ProtocolFee
- * @dev On-chain fee collection contract with EIP-712 verification.
+ * @dev EIP-712 signed fee collection for the OpenTTT protocol.
+ * Collects protocol fees with replay protection via nonce tracking.
  */
-contract ProtocolFee is Ownable, EIP712, Nonces {
-    using SafeERC20 for IERC20;
+contract ProtocolFee is EIP712, Ownable {
+    using ECDSA for bytes32;
 
-    address public protocolFeeRecipient;
-    bytes32 private constant COLLECT_FEE_TYPEHASH = keccak256("CollectFee(address token,uint256 amount,uint256 nonce,uint256 deadline)");
+    bytes32 private constant FEE_TYPEHASH =
+        keccak256("Fee(address payer,uint256 amount,uint256 nonce,uint256 deadline)");
+
+    address public feeRecipient;
+    mapping(address => uint256) public nonces;
 
     event FeeCollected(address indexed payer, uint256 amount, uint256 nonce);
+    event FeeRecipientUpdated(address indexed oldRecipient, address indexed newRecipient);
 
-    constructor(address _recipient) Ownable(msg.sender) EIP712("Helm Protocol", "1") {
-        protocolFeeRecipient = _recipient;
+    error InvalidSignature();
+    error ExpiredDeadline();
+    error InsufficientPayment();
+    error ZeroAddress();
+
+    constructor(address _feeRecipient) EIP712("OpenTTT_ProtocolFee", "1") Ownable(msg.sender) {
+        require(_feeRecipient != address(0), "Zero address");
+        feeRecipient = _feeRecipient;
     }
 
     /**
-     * @dev Sets the treasury address.
-     */
-    function setProtocolFeeRecipient(address _recipient) external onlyOwner {
-        require(_recipient != address(0), "Zero address");
-        protocolFeeRecipient = _recipient;
-    }
-
-    /**
-     * @dev Collects fee from user with EIP-712 signature verification.
+     * @dev Collect a protocol fee with EIP-712 signed authorization.
+     * @param payer Address paying the fee (must match the signer)
+     * @param amount Fee amount in wei
+     * @param deadline Timestamp after which the signature expires
+     * @param v ECDSA recovery id
+     * @param r ECDSA r value
+     * @param s ECDSA s value
      */
     function collectFee(
-        address token,
+        address payer,
         uint256 amount,
-        bytes calldata signature,
-        uint256 nonce,
-        uint256 deadline
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
     ) external {
-        require(block.timestamp <= deadline, "Deadline exceeded");
-        _useCheckedNonce(msg.sender, nonce);
+        if (block.timestamp > deadline) revert ExpiredDeadline();
+        if (amount == 0) revert InsufficientPayment();
 
-        bytes32 structHash = keccak256(abi.encode(COLLECT_FEE_TYPEHASH, token, amount, nonce, deadline));
-        bytes32 hash = _hashTypedDataV4(structHash);
-        address signer = ECDSA.recover(hash, signature);
+        uint256 currentNonce = nonces[payer];
 
-        require(signer == msg.sender, "Invalid signature");
+        bytes32 structHash = keccak256(
+            abi.encode(FEE_TYPEHASH, payer, amount, currentNonce, deadline)
+        );
+        bytes32 digest = _hashTypedDataV4(structHash);
+        address signer = digest.recover(v, r, s);
 
-        IERC20(token).safeTransferFrom(msg.sender, protocolFeeRecipient, amount);
+        if (signer != payer) revert InvalidSignature();
 
-        emit FeeCollected(msg.sender, amount, nonce);
+        nonces[payer] = currentNonce + 1;
+
+        // Transfer fee from caller's msg.value
+        (bool sent, ) = feeRecipient.call{value: amount}("");
+        require(sent, "Fee transfer failed");
+
+        emit FeeCollected(payer, amount, currentNonce);
     }
+
+    /**
+     * @dev Update the fee recipient address (Owner only).
+     * @param newRecipient New address to receive protocol fees
+     */
+    function setFeeRecipient(address newRecipient) external onlyOwner {
+        if (newRecipient == address(0)) revert ZeroAddress();
+        address old = feeRecipient;
+        feeRecipient = newRecipient;
+        emit FeeRecipientUpdated(old, newRecipient);
+    }
+
+    /**
+     * @dev Returns the current nonce for a given payer (for signature construction).
+     */
+    function getNonce(address payer) external view returns (uint256) {
+        return nonces[payer];
+    }
+
+    /**
+     * @dev Returns the EIP-712 domain separator for off-chain signature construction.
+     */
+    function getDomainSeparator() external view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
+
+    receive() external payable {}
 }

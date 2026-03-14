@@ -41,13 +41,13 @@ Three lines to start minting TimeTokens:
 ```typescript
 import { TTTClient } from "openttt";
 
-const ttt = await TTTClient.forBase({
-  signer: { type: "privateKey", envVar: "OPERATOR_PK" },
-});
+const ttt = await TTTClient.forBase({ privateKey: process.env.OPERATOR_PK! });
 ttt.startAutoMint();
 ```
 
 That is it. The SDK connects to Base Mainnet, synthesizes time from three atomic clock sources, and begins minting Proof-of-Time tokens at your configured tier interval.
+
+> **Shorthand**: Pass `privateKey` directly as a string instead of the full `signer` config object. The verbose form `{ signer: { type: "privateKey", key: "0x..." } }` still works for when you need other signer types (Turnkey, KMS, Privy).
 
 ---
 
@@ -60,9 +60,7 @@ OpenTTT is designed around progressive disclosure. Start simple, add control as 
 ```typescript
 import { TTTClient } from "openttt";
 
-const ttt = await TTTClient.forBase({
-  signer: { type: "privateKey", envVar: "OPERATOR_PK" },
-});
+const ttt = await TTTClient.forBase({ privateKey: process.env.OPERATOR_PK! });
 ttt.startAutoMint();
 ```
 
@@ -70,7 +68,7 @@ ttt.startAutoMint();
 
 ```typescript
 const ttt = await TTTClient.forSepolia({
-  signer: { type: "privateKey", key: process.env.OPERATOR_PK! },
+  privateKey: process.env.OPERATOR_PK!,
   rpcUrl: "https://my-rpc.example.com",
   tier: "T2_slot",
 });
@@ -111,7 +109,7 @@ OpenTTT abstracts away signer complexity. Use a raw private key for development,
 |---|---|---|
 | `privateKey` | Development, small operators | `{ type: "privateKey", key: "0x..." }` or `{ type: "privateKey", envVar: "OPERATOR_PK" }` |
 | `turnkey` | Production, TEE-backed institutional custody | `{ type: "turnkey", apiBaseUrl, organizationId, privateKeyId, apiPublicKey, apiPrivateKey }` |
-| `privy` | Embedded wallets, consumer-facing apps | `{ type: "privy", appId, appSecret }` |
+| `privy` | Embedded wallets, consumer-facing apps (coming soon) | `{ type: "privy", appId, appSecret }` |
 | `kms` | Cloud HSM (AWS KMS or GCP Cloud KMS) | `{ type: "kms", provider: "aws"\|"gcp", keyId, ... }` |
 
 **AWS KMS** requires `@aws-sdk/client-kms`. **GCP KMS** requires `@google-cloud/kms`. Both are optional peer dependencies -- install only what you use.
@@ -312,7 +310,7 @@ OpenTTT queries multiple atomic clock-synchronized NTP sources in parallel and p
 - **KRISS** (time.kriss.re.kr) -- Korean national standard
 - **Google** (time.google.com) -- Leap-smeared public NTP
 
-All readings must fall within 100ms tolerance of the synthesized median, or the Proof of Time is rejected. Single-source operation triggers a degraded-confidence warning.
+All readings must fall within a stratum-dependent tolerance of the synthesized median (10ms for stratum 1, 25ms for stratum 2, 50ms for stratum 3+), or the Proof of Time is rejected. Single-source operation triggers a degraded-confidence warning.
 
 ---
 

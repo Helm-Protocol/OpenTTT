@@ -1,40 +1,31 @@
 import { ethers, Signer } from "ethers";
+import { EventEmitter } from "events";
 import { AutoMintEngine } from "./auto_mint";
-import { AutoMintConfig, TTTClientConfig } from "./types";
+import { AutoMintConfig, TTTClientConfig, TierIntervals, MintResult, HealthStatus } from "./types";
 import { logger } from "./logger";
 import { PoolRegistry } from "./pool_registry";
 import { NETWORKS, NetworkConfig } from "./networks";
 import { createSigner } from "./signer";
 
+// Re-export HealthStatus from types for backward compatibility
+export { HealthStatus } from "./types";
+
 /**
- * Health status returned by getHealth()
+ * Typed event map for TTTClient EventEmitter.
  */
-export interface HealthStatus {
-  healthy: boolean;
-  checks: {
-    initialized: boolean;
-    rpcConnected: boolean;
-    signerAvailable: boolean;
-    balanceSufficient: boolean;
-    ntpSourcesOk: boolean;
-  };
-  metrics: {
-    mintCount: number;
-    mintFailures: number;
-    successRate: number;
-    totalFeesPaid: string;
-    avgMintLatencyMs: number;
-    lastMintAt: string | null;
-    uptimeMs: number;
-  };
-  alerts: string[];
+export interface TTTClientEvents {
+  mint: [result: MintResult];
+  error: [error: Error];
+  alert: [alert: string];
+  latency: [ms: number];
+  modeSwitch: [mode: string];
 }
 
 /**
- * TTTClient - DEX 운영자용 SDK 진입점
- * 모든 내부 모듈을 초기화하고 자동 민팅 프로세스를 관리
+ * TTTClient - SDK entry point for DEX operators.
+ * Initializes all internal modules and manages the auto-minting process.
  */
-export class TTTClient {
+export class TTTClient extends EventEmitter {
   private config: AutoMintConfig;
   private autoMintEngine: AutoMintEngine;
   private poolRegistry: PoolRegistry;
@@ -48,14 +39,14 @@ export class TTTClient {
   private lastMintAt: Date | null = null;
   private startedAt: Date = new Date();
   private minBalanceWei: bigint = ethers.parseEther("0.01"); // 0.01 ETH alert threshold
-  private onAlertCallback?: (alert: string) => void;
 
   constructor(config: AutoMintConfig) {
+    super();
     this.config = config;
     this.autoMintEngine = new AutoMintEngine(config);
     this.poolRegistry = new PoolRegistry();
-    
-    // Set up callback to update stats + metrics
+
+    // Wire callbacks to update stats + emit events
     this.autoMintEngine.setOnMint((result) => {
       this.mintCount++;
       this.totalFeesPaid += result.protocolFeePaid;
@@ -64,11 +55,15 @@ export class TTTClient {
 
       // Record in registry
       this.poolRegistry.recordMint(this.config.poolAddress, 1n);
+
+      // Emit typed 'mint' event
+      this.emit('mint', result);
     });
 
-    // H2: Wire failure/latency metrics from AutoMint loop to TTTClient
-    this.autoMintEngine.setOnFailure((_error) => {
+    // Wire failure/latency metrics from AutoMint loop to TTTClient
+    this.autoMintEngine.setOnFailure((error) => {
       this.mintFailures++;
+      this.emit('error', error);
     });
 
     this.autoMintEngine.setOnLatency((ms) => {
@@ -76,6 +71,7 @@ export class TTTClient {
       if (this.mintLatencies.length > 100) {
         this.mintLatencies.shift();
       }
+      this.emit('latency', ms);
     });
   }
 
@@ -97,10 +93,43 @@ export class TTTClient {
    * Universal factory to create and initialize a client
    */
   static async create(config: TTTClientConfig): Promise<TTTClient> {
+    // 0. Shorthand: privateKey string -> SignerConfig
+    if (config.privateKey && !config.signer) {
+      const key = config.privateKey.startsWith('0x') ? config.privateKey : '0x' + config.privateKey;
+      config = { ...config, signer: { type: 'privateKey', key } };
+    }
+
+    // 0.5. Validation: require either signer or privateKey
+    if (!config.signer) {
+      throw new Error(
+        'TTTClient requires either `signer` or `privateKey`. Simplest: TTTClient.forBase({ privateKey: process.env.OPERATOR_PK! })'
+      );
+    }
+
+    // 0.7. Validate tier — CRITICAL: invalid tier causes setInterval(fn, undefined) = 1ms loop = wallet drain
+    const tier = config.tier || "T1_block";
+    if (!TierIntervals[tier]) {
+      const validTiers = Object.keys(TierIntervals).join(', ');
+      throw new Error(`[TTTClient] Invalid tier "${tier}". Valid tiers: ${validTiers}`);
+    }
+
+    // 0.8. Validate fee rate bounds
+    if (config.protocolFeeRate !== undefined) {
+      if (config.protocolFeeRate < 0 || config.protocolFeeRate > 1) {
+        throw new Error(`[TTTClient] protocolFeeRate must be 0-1 (got ${config.protocolFeeRate}). Example: 0.05 = 5%`);
+      }
+    }
+
+    // 0.9. Validate network string
+    if (typeof config.network === 'string' && !NETWORKS[config.network]) {
+      const validNets = Object.keys(NETWORKS).join(', ');
+      throw new Error(`[TTTClient] Unknown network "${config.network}". Valid: ${validNets}. Or pass a custom NetworkConfig object.`);
+    }
+
     // 1. Resolve network defaults
     let net: NetworkConfig;
     if (typeof config.network === 'string') {
-      net = NETWORKS[config.network] || NETWORKS.base;
+      net = NETWORKS[config.network];
     } else if (config.network) {
       net = config.network;
     } else {
@@ -124,18 +153,30 @@ export class TTTClient {
       signer: signer,
       contractAddress: config.contractAddress || net.tttAddress,
       feeCollectorAddress: net.protocolFeeAddress,
-      poolAddress: config.poolAddress || "0x0000000000000000000000000000000000000000",
+      poolAddress: (() => {
+        const addr = config.poolAddress;
+        if (!addr || addr === "0x0000000000000000000000000000000000000000") {
+          throw new Error("[TTTClient] poolAddress is required. Provide a valid DEX pool address.");
+        }
+        return addr;
+      })(),
       tier: config.tier || "T1_block",
       timeSources: config.timeSources || ["nist", "kriss", "google"],
       protocolFeeRate: config.protocolFeeRate || 0.05,
-      protocolFeeRecipient: config.protocolFeeRecipient || "0x0000000000000000000000000000000000000000",
+      protocolFeeRecipient: (() => {
+        const addr = config.protocolFeeRecipient;
+        if (!addr || addr === "0x0000000000000000000000000000000000000000") {
+          throw new Error("[TTTClient] protocolFeeRecipient is required. Provide a valid fee recipient address.");
+        }
+        return addr;
+      })(),
       fallbackPriceUsd: config.fallbackPriceUsd || 10000n,
     };
 
     // 4. Instantiate and initialize
     const client = new TTTClient(autoMintConfig);
     await client.initialize();
-    
+
     if (config.enableGracefulShutdown) {
       process.on('SIGINT', async () => {
         logger.info("[TTTClient] SIGINT received, shutting down gracefully...");
@@ -154,7 +195,7 @@ export class TTTClient {
     if (!this.isInitialized) return;
 
     logger.info("[TTTClient] Destroying client...");
-    
+
     // 1. Stop auto-mint engine
     this.autoMintEngine.stop();
 
@@ -169,22 +210,22 @@ export class TTTClient {
   }
 
   /**
-   * SDK 초기화: RPC 연결, 시간 소스 설정, 수수료 엔진 연결
+   * Initialize the SDK: RPC connection, time sources, fee engine wiring.
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
-    
+
     try {
       logger.info(`[TTTClient] Initializing for chain ${this.config.chainId}...`);
       await this.autoMintEngine.initialize();
-      
+
       const connector = this.autoMintEngine.getEvmConnector();
       this.signer = connector.getSigner();
 
       // Register initial pool
       await this.poolRegistry.registerPool(this.config.chainId, this.config.poolAddress);
 
-      // R2-P2-2: Validate feeCollectorAddress early before use
+      // Validate feeCollectorAddress early before use
       if (this.config.feeCollectorAddress && !ethers.isAddress(this.config.feeCollectorAddress)) {
         throw new Error(`[TTTClient] Invalid feeCollectorAddress: ${this.config.feeCollectorAddress}`);
       }
@@ -214,7 +255,7 @@ export class TTTClient {
           logger.info(`[TTTClient] Event: FeeCollected from ${payer}, amount: ${amount}, nonce: ${nonce}`);
         }
       });
-      
+
       this.isInitialized = true;
       logger.info(`[TTTClient] SDK initialized successfully`);
     } catch (error) {
@@ -226,22 +267,32 @@ export class TTTClient {
   }
 
   /**
-   * 자동 민팅 프로세스 시작
+   * Start the auto-minting process.
    */
   startAutoMint(): void {
     if (!this.isInitialized) {
       throw new Error("SDK must be initialized before starting auto-mint");
     }
-    
+
     this.autoMintEngine.start();
     logger.info(`[TTTClient] Auto-minting started for tier ${this.config.tier}`);
   }
 
   /**
-   * 자동 민팅 프로세스 정지
+   * Stop the auto-minting process.
    */
   stopAutoMint(): void {
     this.autoMintEngine.stop();
+  }
+
+  /**
+   * Resume auto-minting after a circuit breaker trip.
+   * Resets consecutive failure count and restarts the engine.
+   */
+  resume(): void {
+    this.autoMintEngine.resume();
+    this.emit('modeSwitch', 'resumed');
+    logger.info(`[TTTClient] Auto-minting resumed`);
   }
 
   /**
@@ -267,16 +318,15 @@ export class TTTClient {
 
   /**
    * Register alert callback for real-time notifications.
+   * Backward compatible: delegates to EventEmitter 'alert' event.
    */
   onAlert(callback: (alert: string) => void): void {
-    this.onAlertCallback = callback;
+    this.on('alert', callback);
   }
 
   private emitAlert(alert: string): void {
     logger.warn(`[TTTClient] ALERT: ${alert}`);
-    if (this.onAlertCallback) {
-      try { this.onAlertCallback(alert); } catch (_) { /* swallow */ }
-    }
+    this.emit('alert', alert);
   }
 
   /**
@@ -305,7 +355,7 @@ export class TTTClient {
     const alerts: string[] = [];
     let rpcConnected = false;
     let balanceSufficient = false;
-    let ntpSourcesOk = true; // Assume ok unless we can verify
+    let ntpSourcesOk = false;
 
     // 1. RPC connectivity check
     if (this.isInitialized && this.signer?.provider) {
@@ -332,7 +382,28 @@ export class TTTClient {
       }
     }
 
-    // 3. Consecutive failure check
+    // 3. NTP/time source health check via quick synthesis with timeout
+    try {
+      const synthResult = await Promise.race([
+        this.autoMintEngine.getTimeSynthesis().synthesize(),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error("Time synthesis health check timed out")), 3000)
+        ),
+      ]);
+      if (synthResult && synthResult.sources >= 2 && synthResult.confidence >= 0.5) {
+        ntpSourcesOk = true;
+      } else {
+        ntpSourcesOk = false;
+        alerts.push(
+          `Time sources degraded: ${synthResult?.sources ?? 0} source(s), confidence ${synthResult?.confidence?.toFixed(2) ?? "N/A"}`
+        );
+      }
+    } catch {
+      ntpSourcesOk = false;
+      alerts.push("Time source health check failed");
+    }
+
+    // 4. Consecutive failure check
     const total = this.mintCount + this.mintFailures;
     const successRate = total > 0 ? this.mintCount / total : 1;
     if (this.mintFailures > 5 && successRate < 0.8) {
@@ -377,7 +448,7 @@ export class TTTClient {
   }
 
   /**
-   * 현재 SDK 상태 및 통계 반환 (잔고, 민팅 수, 수수료 등)
+   * Return current SDK status and statistics (balance, mint count, fees, etc.)
    */
   async getStatus(): Promise<{
     isInitialized: boolean;

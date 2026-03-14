@@ -1,5 +1,6 @@
 import * as crypto from 'crypto';
 import * as dgram from 'dgram';
+import * as https from 'https';
 import { Buffer } from 'buffer';
 import { keccak256, AbiCoder } from "ethers";
 import { TimeReading, SynthesizedTime, ProofOfTime } from "./types";
@@ -107,6 +108,62 @@ export class NTPSource implements TimeSource {
   }
 }
 
+/**
+ * HTTPS-based time source (TLS-protected, immune to MITM).
+ * Uses HTTP Date header from trusted TLS endpoints.
+ * Preferred over plaintext NTP (UDP) which is vulnerable to spoofing.
+ */
+export class HTTPSTimeSource implements TimeSource {
+  constructor(public name: string, private url: string) {}
+
+  async getTime(): Promise<TimeReading> {
+    const t1 = BigInt(Date.now()) * 1_000_000n;
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new TTTTimeSynthesisError(
+          `HTTPS time timeout for ${this.name}`,
+          `${this.url} did not respond within 3000ms`,
+          "Check network connectivity or try a different HTTPS time endpoint."
+        ));
+      }, 3000);
+
+      const req = https.request(this.url, { method: 'HEAD' }, (res) => {
+        clearTimeout(timeout);
+        const t4 = BigInt(Date.now()) * 1_000_000n;
+        const dateHeader = res.headers['date'];
+        if (!dateHeader) {
+          reject(new TTTTimeSynthesisError(
+            `No Date header from ${this.name}`,
+            "HTTPS response missing Date header",
+            "The endpoint must return a Date header (RFC 7231)."
+          ));
+          return;
+        }
+        const serverTime = BigInt(new Date(dateHeader).getTime()) * 1_000_000n;
+        const rttNs = t4 - t1;
+        const rttMs = Number(rttNs) / 1_000_000;
+        // Offset-corrected: server time + half RTT
+        const corrected = serverTime + rttNs / 2n;
+        resolve({
+          timestamp: corrected,
+          uncertainty: rttMs / 2 + 500, // 500ms base uncertainty for HTTP Date (1s resolution)
+          stratum: 2, // HTTPS endpoints typically sync to stratum-1
+          source: this.name
+        });
+      });
+      req.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(new TTTTimeSynthesisError(
+          `HTTPS time error for ${this.name}`,
+          err.message,
+          "Check TLS connectivity."
+        ));
+      });
+      req.end();
+    });
+  }
+}
+
 export class TimeSynthesis {
   private sources: TimeSource[] = [];
 
@@ -117,14 +174,17 @@ export class TimeSynthesis {
 
   constructor(config?: { sources?: string[] }) {
     const sourceNames = config?.sources || ['nist', 'kriss', 'google'];
-    
+
     for (const s of sourceNames) {
       if (s === 'nist') {
-        this.sources.push(new NTPSource('nist', 'time.nist.gov'));
+        // Primary: HTTPS (TLS-protected), Fallback: NTP (plaintext UDP)
+        this.sources.push(new HTTPSTimeSource('nist', 'https://time.nist.gov/'));
       } else if (s === 'kriss') {
+        // KRISS does not have a public HTTPS time API — NTP only with warning
+        logger.warn('[TimeSynthesis] KRISS source uses plaintext NTP (UDP). Consider replacing with an HTTPS-based source for MITM protection.');
         this.sources.push(new NTPSource('kriss', 'time.kriss.re.kr'));
       } else if (s === 'google' || s === 'galileo') {
-        this.sources.push(new NTPSource('google', 'time.google.com'));
+        this.sources.push(new HTTPSTimeSource('google', 'https://time.google.com/'));
       }
     }
   }
@@ -230,7 +290,8 @@ export class TimeSynthesis {
     const sourceReadings = readings.map(r => ({
       source: r.source,
       timestamp: r.timestamp,
-      uncertainty: r.uncertainty
+      uncertainty: r.uncertainty,
+      stratum: r.stratum
     }));
 
     // Fix 2: PoT nonce + expiration for replay protection
@@ -261,18 +322,42 @@ export class TimeSynthesis {
    * Fix 2: Checks expiration and nonce replay.
    * Fix 3: Uses sourceReadings (renamed from signatures).
    */
+  /**
+   * Determine PoT verification tolerance based on the lowest stratum
+   * observed across source readings. Lower stratum = more precise source
+   * = tighter tolerance allowed.
+   *
+   *   Stratum 1:  10ms (10_000_000ns) - atomic clock direct
+   *   Stratum 2:  25ms (25_000_000ns) - NTP server synced to stratum 1
+   *   Stratum 3+: 50ms (50_000_000ns) - downstream NTP
+   */
+  private static getToleranceForStratum(stratum: number): bigint {
+    if (stratum <= 1) return 10_000_000n;
+    if (stratum === 2) return 25_000_000n;
+    return 50_000_000n;
+  }
+
   verifyProofOfTime(pot: ProofOfTime): boolean {
-    const TOLERANCE_NS = 100_000_000n; // 100ms
     if (pot.sourceReadings.length === 0) return false;
     if (pot.confidence <= 0) return false;
 
-    // Fix 2: Expiration check
+    // Determine tolerance from the lowest stratum in sourceReadings.
+    // Fall back to pot.stratum if individual readings lack stratum info.
+    let lowestStratum = pot.stratum;
+    for (const reading of pot.sourceReadings) {
+      if (reading.stratum !== undefined && reading.stratum < lowestStratum) {
+        lowestStratum = reading.stratum;
+      }
+    }
+    const toleranceNs = TimeSynthesis.getToleranceForStratum(lowestStratum);
+
+    // Expiration check
     if (BigInt(Date.now()) > pot.expiresAt) {
       logger.warn(`[TimeSynthesis] PoT expired at ${pot.expiresAt}`);
       return false;
     }
 
-    // Fix 2: Nonce replay protection with bounded cache + TTL cleanup
+    // Nonce replay protection with bounded cache + TTL cleanup
     const now = Date.now();
     // TTL cleanup pass (evict expired entries)
     if (this.usedNonces.size > this.MAX_NONCE_CACHE / 2) {
@@ -293,8 +378,8 @@ export class TimeSynthesis {
 
     for (const sig of pot.sourceReadings) {
       const diff = sig.timestamp > pot.timestamp ? sig.timestamp - pot.timestamp : pot.timestamp - sig.timestamp;
-      if (diff > TOLERANCE_NS) {
-        logger.warn(`[TimeSynthesis] Reading from ${sig.source} outside tolerance: ${diff}ns`);
+      if (diff > toleranceNs) {
+        logger.warn(`[TimeSynthesis] Reading from ${sig.source} outside tolerance (${toleranceNs}ns, stratum ${lowestStratum}): ${diff}ns`);
         return false;
       }
     }
@@ -307,10 +392,10 @@ export class TimeSynthesis {
   static getOnChainHash(pot: ProofOfTime): string {
     return keccak256(
       AbiCoder.defaultAbiCoder().encode(
-        ["uint64", "uint32", "uint8", "uint8", "uint32"],
+        ["uint64", "uint64", "uint8", "uint8", "uint32"],
         [
-          pot.timestamp / 1_000_000n, // Convert to ms for storage efficiency
-          Math.round(pot.uncertainty * 1000), // Scale uncertainty
+          pot.timestamp, // Keep full nanosecond precision (uint64 max ~year 2554)
+          Math.round(pot.uncertainty * 1_000_000), // Scale uncertainty to ns
           pot.sources,
           pot.stratum,
           Math.round(pot.confidence * 1000000)

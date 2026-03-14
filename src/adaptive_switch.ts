@@ -35,10 +35,10 @@ export class AdaptiveSwitch {
   private turboMaintainThreshold = 0.85; // P2-2: Hysteresis — relaxed maintenance
 
   /**
-   * TTT의 핵심 메커니즘: 타임스탬프 순서 일치율에 따른 Turbo/Full 모드 전환
+   * Core TTT mechanism: switches between Turbo/Full mode based on timestamp ordering match rate.
    */
   verifyBlock(block: Block, tttRecord: TTTRecord): AdaptiveMode {
-    // 1. 타임스탬프 순서 및 시간 일치 여부 확인
+    // 1. Check timestamp ordering and time match
     const orderMatch = this.compareTransactionOrder(block.txs, tttRecord.txOrder);
     const timeMatch = Math.abs(block.timestamp - tttRecord.time) < TOLERANCE;
     let sequenceOk = orderMatch && timeMatch;
@@ -57,7 +57,7 @@ export class AdaptiveSwitch {
       }
     }
 
-    // 2. 이력 업데이트 (Sliding Window)
+    // 2. Update history (Sliding Window)
     this.history.push(sequenceOk);
     if (this.history.length > this.windowSize) {
       this.history.shift();
@@ -67,7 +67,7 @@ export class AdaptiveSwitch {
       this.penaltyCooldown--;
     }
 
-    // 3. 일치율 계산 및 모드 전환
+    // 3. Calculate match rate and switch mode
     const matchCount = this.history.filter(h => h).length;
     const matchRate = this.history.length > 0 ? matchCount / this.history.length : 0;
 
@@ -93,23 +93,23 @@ export class AdaptiveSwitch {
   }
 
   /**
-   * 모드에 따른 수수료 할인율 반환
-   * TURBO: 20% 할인 (수익 증가 유도)
-   * FULL: 할인 없음
+   * Return fee discount rate based on current mode.
+   * TURBO: 20% discount (incentivizes profitability).
+   * FULL: No discount.
    */
   getFeeDiscount(): number {
     return this.currentMode === AdaptiveMode.TURBO ? 0.2 : 0.0;
   }
 
   /**
-   * 현재 모드 조회
+   * Get current adaptive mode.
    */
   getCurrentMode(): AdaptiveMode {
     return this.currentMode;
   }
 
   /**
-   * 테스트용: 이력 초기화
+   * Reset history (for testing).
    */
   reset(): void {
     this.history = [];

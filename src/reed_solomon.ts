@@ -3,6 +3,13 @@ export class ReedSolomon {
   private static logTable = new Uint8Array(256);
   private static initialized = false;
 
+  /**
+   * Static Vandermonde matrix cache keyed by "${totalShards}-${dataShards}".
+   * Avoids recomputing the GF(2^8) Vandermonde + inverse on every tick,
+   * which is the most expensive part of RS encoding/decoding.
+   */
+  private static vandermondeCache = new Map<string, number[][]>();
+
   public static init() {
     if (this.initialized) return;
     let x = 1;
@@ -83,7 +90,16 @@ export class ReedSolomon {
     return inv;
   }
 
+  /**
+   * Build (or retrieve from cache) the normalized Vandermonde encoding matrix.
+   * Cache key: "${rows}-${cols}" — RS parameters rarely change within a session,
+   * so caching eliminates redundant GF(2^8) matrix inversion on every tick.
+   */
   private static buildVandermonde(rows: number, cols: number): number[][] {
+    const cacheKey = `${rows}-${cols}`;
+    const cached = this.vandermondeCache.get(cacheKey);
+    if (cached) return cached;
+
     const V: number[][] = [];
     for (let r = 0; r < rows; r++) {
       V[r] = [];
@@ -96,14 +112,14 @@ export class ReedSolomon {
         }
       }
     }
-    
+
     const V_top: number[][] = [];
     for (let i = 0; i < cols; i++) {
       V_top.push([...V[i]]);
     }
-    
+
     const V_top_inv = this.invertMatrix(V_top);
-    
+
     const G: number[][] = [];
     for (let r = 0; r < rows; r++) {
       G[r] = [];
@@ -115,6 +131,8 @@ export class ReedSolomon {
         G[r][c] = val;
       }
     }
+
+    this.vandermondeCache.set(cacheKey, G);
     return G;
   }
 

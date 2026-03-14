@@ -1,12 +1,12 @@
 // sdk/src/dynamic_fee.ts — Dynamic Fee Engine
-// TTT 시장가에 연동되어 자동으로 tick 비용 조정
-// DEX 운영자는 tier만 설정 → 나머지 SDK가 자동 처리
+// Automatically adjusts tick cost based on TTT market price
+// DEX operators only set tier; the SDK handles the rest automatically
 
 import { ethers, Contract, JsonRpcProvider } from "ethers";
 import { logger } from "./logger";
 import { TierType } from "./types";
 
-// Tier별 USD 목표 비용 (Scale: 1e6)
+// Target USD cost per tier (Scale: 1e6)
 export const TIER_USD_MICRO: Record<string, bigint> = {
   T0_epoch: 1000n,    // $0.001 * 1e6
   T1_block: 10000n,   // $0.01 * 1e6
@@ -14,7 +14,7 @@ export const TIER_USD_MICRO: Record<string, bigint> = {
   T3_micro: 12000000n, // $12 * 1e6
 };
 
-// Helm 프로토콜 수수료 구간 (Scale: 1e4, e.g., 500 = 5%)
+// Helm protocol fee tiers (Scale: 1e4, e.g., 500 = 5%)
 export const FEE_TIERS = {
   BOOTSTRAP: { mintFee: 500n, burnFee: 200n, threshold: 5000n },   // threshold: $0.005 * 1e6
   GROWTH:    { mintFee: 1000n, burnFee: 300n, threshold: 50000n },  // threshold: $0.05 * 1e6
@@ -23,16 +23,16 @@ export const FEE_TIERS = {
 };
 
 export interface FeeCalculation {
-  tttAmount: bigint;        // 필요한 TTT 수량 (tick당, 18 decimals)
-  protocolFeeUsd: bigint;   // Helm 수수료 (stablecoin, 6 decimals)
-  feeToken: string;         // 수수료 결제 토큰
-  feeTokenAddress: string;  // 수수료 토큰 컨트랙트 주소
-  clientNet: bigint;        // 클라이언트 순 TTT 수량
-  tttPriceUsd: bigint;      // 현재 TTT/USD 가격 (6 decimals)
-  usdCost: bigint;          // USD 환산 총 비용 (6 decimals)
-  feeRateMint: bigint;      // 적용된 민팅 수수료율 (basis points, 10000 = 100%)
-  feeRateBurn: bigint;      // 적용된 소각 수수료율 (basis points)
-  tier: string;             // 적용된 tier
+  tttAmount: bigint;        // Required TTT amount (per tick, 18 decimals)
+  protocolFeeUsd: bigint;   // Helm protocol fee (stablecoin, 6 decimals)
+  feeToken: string;         // Fee payment token symbol
+  feeTokenAddress: string;  // Fee token contract address
+  clientNet: bigint;        // Client net TTT amount
+  tttPriceUsd: bigint;      // Current TTT/USD price (6 decimals)
+  usdCost: bigint;          // Total cost in USD (6 decimals)
+  feeRateMint: bigint;      // Applied mint fee rate (basis points, 10000 = 100%)
+  feeRateBurn: bigint;      // Applied burn fee rate (basis points)
+  tier: string;             // Applied tier
 }
 
 export interface PriceOracleConfig {
@@ -101,7 +101,7 @@ export class DynamicFeeEngine {
   }
 
   /**
-   * 캐시 강제 무효화 — 외부에서 즉시 가격 갱신이 필요할 때 호출
+   * Force-invalidate price cache -- call when immediate price refresh is needed.
    */
   invalidateCache(): void {
     this.priceCache = null;

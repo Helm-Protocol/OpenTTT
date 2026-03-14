@@ -43,25 +43,31 @@ export class GrgInverse {
   static golombDecode(data: Uint8Array, m: number = 16): Uint8Array {
     if (m < 2) throw new Error("[GRG] Golomb parameter m must be >= 2");
     const k = Math.log2(m);
-    let bits = "";
-    for (const byte of data) {
-      bits += byte.toString(2).padStart(8, "0");
-    }
+    const totalBits = data.length * 8;
 
-    const result = [];
+    // Helper to read a single bit from the packed byte array
+    const readBit = (pos: number): number => {
+      return (data[pos >> 3] >> (7 - (pos & 7))) & 1;
+    };
+
+    const result: number[] = [];
     let i = 0;
-    while (i < bits.length) {
+    while (i < totalBits) {
+      // Read unary part: count 1-bits until a 0-bit
       let q = 0;
-      while (bits[i] === "1") {
+      while (i < totalBits && readBit(i) === 1) {
         q++;
         i++;
         if (q > this.MAX_GOLOMB_Q) throw new Error(`[GRG] Golomb decode: unary run exceeds ${this.MAX_GOLOMB_Q} — malformed or malicious input`);
       }
-      if (bits[i] === "0") i++;
-      
-      const rStr = bits.substring(i, i + k);
-      if (rStr.length < k) break;
-      const r = parseInt(rStr, 2);
+      if (i < totalBits && readBit(i) === 0) i++; // skip the 0 delimiter
+
+      // Read k-bit remainder
+      if (i + k > totalBits) break;
+      let r = 0;
+      for (let j = 0; j < k; j++) {
+        r = (r << 1) | readBit(i + j);
+      }
       result.push(q * m + r);
       i += k;
     }
