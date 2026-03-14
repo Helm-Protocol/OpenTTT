@@ -36,7 +36,7 @@ export class AutoMintEngine {
   private maxConsecutiveFailures: number = 5;
   private potSigner: PotSigner | null = null;
   /** Monotonic counter appended to tokenId hash to prevent collision when two mints share the same nanosecond timestamp. */
-  private mintNonce: bigint = 0n;
+  private mintNonce: bigint = BigInt(Date.now());
 
   constructor(config: AutoMintConfig) {
     this.config = config;

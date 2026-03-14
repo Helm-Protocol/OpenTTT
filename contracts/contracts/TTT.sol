@@ -3,7 +3,6 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
@@ -11,19 +10,21 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 /**
  * @title TTT (Tikitaka Tick Token)
  * @dev Tikitaka Tick Token implementation for managing micropayment ticks.
- * Inherits ERC-1155, ERC1155Supply, Ownable, ReentrancyGuard, and Pausable from OpenZeppelin.
- * Compliant with Task H requirements: onlyOwner access and ReentrancyGuard.
+ * Inherits ERC-1155, ERC1155Supply, AccessControl, ReentrancyGuard, and Pausable from OpenZeppelin.
+ * All access control is managed via AccessControl roles (MINTER_ROLE, PAUSER_ROLE).
  */
-contract TTT is ERC1155, ERC1155Supply, Ownable, AccessControl, ReentrancyGuard, Pausable {
+contract TTT is ERC1155, ERC1155Supply, AccessControl, ReentrancyGuard, Pausable {
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+
     event TTTMinted(address indexed to, uint256 indexed tokenId, uint256 amount);
     event TTTBurned(address indexed from, uint256 indexed tokenId, uint256 amount, uint256 tier);
 
-    constructor() ERC1155("https://api.helm.network/ttt/{id}.json") Ownable(msg.sender) {
+    constructor() ERC1155("https://api.helm.network/ttt/{id}.json") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
+        _grantRole(PAUSER_ROLE, msg.sender);
     }
 
     /**
@@ -64,11 +65,11 @@ contract TTT is ERC1155, ERC1155Supply, Ownable, AccessControl, ReentrancyGuard,
         return uint256(keccak256(abi.encode(chainId, pool, timestamp, slotIndex)));
     }
 
-    function pause() external onlyOwner {
+    function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
-    function unpause() external onlyOwner {
+    function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 
