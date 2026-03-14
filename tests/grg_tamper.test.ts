@@ -3,7 +3,9 @@ import { GrgForward, GrgInverse, AdaptiveSwitch, AdaptiveMode, TTTRecord, Block 
 
 describe("TTT GRG Tamper Detection Tests", () => {
   const data = new TextEncoder().encode("TLS Time Protocol v0.1");
-  const grgPayload = GrgForward.encode(data);
+  const testChainId = 1;
+  const testPoolAddress = "0x1234567890123456789012345678901234567890";
+  const grgPayload = GrgForward.encode(data, testChainId, testPoolAddress);
   const txOrder = ["tx1", "tx2", "tx3"];
   const timestamp = Date.now();
   let adaptiveSwitch: AdaptiveSwitch;
@@ -29,7 +31,7 @@ describe("TTT GRG Tamper Detection Tests", () => {
       ...validBlock,
       txs: ["tx3", "tx2", "tx1"] // Reversed order
     };
-    const mode = adaptiveSwitch.verifyBlock(tamperedBlock, validRecord);
+    const mode = adaptiveSwitch.verifyBlock(tamperedBlock, validRecord, testChainId, testPoolAddress);
     expect(mode).toBe(AdaptiveMode.FULL); // Should detect tamper and switch to FULL
   });
 
@@ -38,7 +40,7 @@ describe("TTT GRG Tamper Detection Tests", () => {
       ...validBlock,
       data: new TextEncoder().encode("TLS Time Protocol v0.2") // Changed content
     };
-    const mode = adaptiveSwitch.verifyBlock(tamperedBlock, validRecord);
+    const mode = adaptiveSwitch.verifyBlock(tamperedBlock, validRecord, testChainId, testPoolAddress);
     expect(mode).toBe(AdaptiveMode.FULL);
   });
 
@@ -47,7 +49,7 @@ describe("TTT GRG Tamper Detection Tests", () => {
       ...validBlock,
       timestamp: timestamp + 5000 // 5 seconds drift
     };
-    const mode = adaptiveSwitch.verifyBlock(tamperedBlock, validRecord);
+    const mode = adaptiveSwitch.verifyBlock(tamperedBlock, validRecord, testChainId, testPoolAddress);
     expect(mode).toBe(AdaptiveMode.FULL);
   });
 
@@ -64,16 +66,16 @@ describe("TTT GRG Tamper Detection Tests", () => {
       grgPayload: tamperedShards
     };
     
-    const mode = adaptiveSwitch.verifyBlock(validBlock, tamperedRecord);
+    const mode = adaptiveSwitch.verifyBlock(validBlock, tamperedRecord, testChainId, testPoolAddress);
     expect(mode).toBe(AdaptiveMode.FULL);
   });
 
   test("Valid Block Performance (TURBO)", () => {
     // Transition to TURBO (20 blocks)
     for (let i = 0; i < 19; i++) {
-      adaptiveSwitch.verifyBlock(validBlock, validRecord);
+      adaptiveSwitch.verifyBlock(validBlock, validRecord, testChainId, testPoolAddress);
     }
-    const mode = adaptiveSwitch.verifyBlock(validBlock, validRecord);
+    const mode = adaptiveSwitch.verifyBlock(validBlock, validRecord, testChainId, testPoolAddress);
     expect(mode).toBe(AdaptiveMode.TURBO);
   });
 });

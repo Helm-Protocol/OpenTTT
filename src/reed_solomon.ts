@@ -166,6 +166,20 @@ export class ReedSolomon {
     return shards;
   }
 
+  /**
+   * Decode data from a set of Reed-Solomon shards (data + parity).
+   *
+   * Shards should be provided in order of reliability: place higher-quality,
+   * more trustworthy shards first. The decoder selects the first `dataShards`
+   * non-null entries for recovery, so ordering by reliability ensures the
+   * most dependable shards are preferred. The implementation already handles
+   * missing (null) shards transparently via GF(2^8) matrix inversion.
+   *
+   * @param shards - Array of shard buffers (null for missing/corrupted shards)
+   * @param dataShards - Number of data shards (default 4)
+   * @param parityShards - Number of parity shards (default 2)
+   * @returns Reconstructed data as a single Uint8Array
+   */
   public static decode(shards: (Uint8Array | null)[], dataShards: number = 4, parityShards: number = 2): Uint8Array {
     this.init();
     const totalShards = dataShards + parityShards;

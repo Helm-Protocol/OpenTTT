@@ -9,6 +9,8 @@ describe("TTT E2E Pipeline Tests", () => {
   const data = new TextEncoder().encode("TLS Time Protocol v0.1");
   const txOrder = ["tx_alpha", "tx_beta", "tx_gamma"];
   const timestamp = Date.now();
+  const testChainId = 1;
+  const testPoolAddress = "0x1234567890123456789012345678901234567890";
   let adaptiveSwitch: AdaptiveSwitch;
   let mockFeeEngine: any;
 
@@ -20,7 +22,7 @@ describe("TTT E2E Pipeline Tests", () => {
   };
 
   // GRG forward encode (issuer side)
-  const grgPayload = GrgForward.encode(data);
+  const grgPayload = GrgForward.encode(data, testChainId, testPoolAddress);
 
   const validRecord: TTTRecord = {
     time: timestamp,
@@ -50,14 +52,14 @@ describe("TTT E2E Pipeline Tests", () => {
 
   test("E2E 1: Honest Builder → TURBO + Tick Deducted", async () => {
     // Step 1: GRG inverse verify (builder receives and verifies)
-    const integrityOk = GrgInverse.verify(data, grgPayload);
+    const integrityOk = GrgInverse.verify(data, grgPayload, testChainId, testPoolAddress);
     expect(integrityOk).toBe(true);
 
     // Step 2: Adaptive switch judges (transition to TURBO after 20 blocks)
     for (let i = 0; i < 19; i++) {
-      adaptiveSwitch.verifyBlock(validBlock, validRecord);
+      adaptiveSwitch.verifyBlock(validBlock, validRecord, testChainId, testPoolAddress);
     }
-    const mode = adaptiveSwitch.verifyBlock(validBlock, validRecord);
+    const mode = adaptiveSwitch.verifyBlock(validBlock, validRecord, testChainId, testPoolAddress);
     expect(mode).toBe(AdaptiveMode.TURBO);
 
     // Step 3: x402 tick deduction
@@ -77,7 +79,7 @@ describe("TTT E2E Pipeline Tests", () => {
     };
 
     // Adaptive switch detects tamper
-    const mode = adaptiveSwitch.verifyBlock(tamperedBlock, validRecord);
+    const mode = adaptiveSwitch.verifyBlock(tamperedBlock, validRecord, testChainId, testPoolAddress);
     expect(mode).toBe(AdaptiveMode.FULL);
 
     // Tick still deducted (swap happened, just slow)
@@ -102,13 +104,13 @@ describe("TTT E2E Pipeline Tests", () => {
       data: tamperedData,
     };
 
-    const mode = adaptiveSwitch.verifyBlock(tamperedBlock, validRecord);
+    const mode = adaptiveSwitch.verifyBlock(tamperedBlock, validRecord, testChainId, testPoolAddress);
     expect(mode).toBe(AdaptiveMode.FULL);
   });
 
   test("E2E 5: GRG Forward→Inverse Roundtrip Integrity (RS Recovery)", () => {
     // Full pipeline: encode → decode → verify original
-    const ok = GrgInverse.verify(data, grgPayload);
+    const ok = GrgInverse.verify(data, grgPayload, testChainId, testPoolAddress);
     expect(ok).toBe(true);
 
     // Tamper 1 shard → verify succeeds (RS recovers ANY 4-of-6)
@@ -120,7 +122,7 @@ describe("TTT E2E Pipeline Tests", () => {
       }
       return s;
     });
-    const tamper1Ok = GrgInverse.verify(data, tampered1Shard);
+    const tamper1Ok = GrgInverse.verify(data, tampered1Shard, testChainId, testPoolAddress);
     expect(tamper1Ok).toBe(true);
 
     // Tamper 3 shards → verify fails (cannot recover with < 4 shards)
@@ -132,7 +134,7 @@ describe("TTT E2E Pipeline Tests", () => {
       }
       return s;
     });
-    const tamper3Ok = GrgInverse.verify(data, tampered3Shards);
+    const tamper3Ok = GrgInverse.verify(data, tampered3Shards, testChainId, testPoolAddress);
     expect(tamper3Ok).toBe(false);
   });
 

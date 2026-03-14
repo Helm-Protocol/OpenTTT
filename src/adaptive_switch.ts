@@ -37,7 +37,7 @@ export class AdaptiveSwitch {
   /**
    * Core TTT mechanism: switches between Turbo/Full mode based on timestamp ordering match rate.
    */
-  verifyBlock(block: Block, tttRecord: TTTRecord): AdaptiveMode {
+  verifyBlock(block: Block, tttRecord: TTTRecord, chainId: number = 1, poolAddress: string = "0x0000000000000000000000000000000000000000"): AdaptiveMode {
     // 1. Check timestamp ordering and time match
     const orderMatch = this.compareTransactionOrder(block.txs, tttRecord.txOrder);
     const timeMatch = Math.abs(block.timestamp - tttRecord.time) < TOLERANCE;
@@ -45,7 +45,7 @@ export class AdaptiveSwitch {
 
     // B1-1: Do not skip GrgInverse.verify() in TURBO mode
     // We check integrity regardless of mode
-    const integrityOk = GrgInverse.verify(block.data, tttRecord.grgPayload);
+    const integrityOk = GrgInverse.verify(block.data, tttRecord.grgPayload, chainId, poolAddress);
     if (!integrityOk) {
       logger.error(`[AdaptiveSwitch] GRG integrity check FAILED`);
       sequenceOk = false; // Mark as false if integrity fails
@@ -116,6 +116,32 @@ export class AdaptiveSwitch {
     this.currentMode = AdaptiveMode.FULL;
     this.penaltyCooldown = 0;
     this.consecutiveFailures = 0;
+  }
+
+  /**
+   * Serialize internal state to JSON for persistence across restarts.
+   * Allows operators to avoid re-learning over 20 blocks after a restart.
+   */
+  serialize(): string {
+    return JSON.stringify({
+      history: this.history,
+      currentMode: this.currentMode,
+      consecutiveFailures: this.consecutiveFailures,
+      penaltyCooldown: this.penaltyCooldown,
+    });
+  }
+
+  /**
+   * Reconstruct an AdaptiveSwitch from previously serialized JSON state.
+   */
+  static deserialize(json: string): AdaptiveSwitch {
+    const data = JSON.parse(json);
+    const instance = new AdaptiveSwitch();
+    instance.history = data.history;
+    instance.currentMode = data.currentMode;
+    instance.consecutiveFailures = data.consecutiveFailures;
+    instance.penaltyCooldown = data.penaltyCooldown;
+    return instance;
   }
 
   private compareTransactionOrder(blockTxs: string[], expectedOrder: string[]): boolean {

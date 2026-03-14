@@ -133,7 +133,7 @@ describe("Full E2E Integration Flow", () => {
     const deadline = Math.floor(Date.now() / 1000) + 3600;
 
     const domain = {
-      name: "Helm Protocol",
+      name: "OpenTTT_ProtocolFee",
       version: "1",
       chainId: chainId,
       verifyingContract: hookAddress

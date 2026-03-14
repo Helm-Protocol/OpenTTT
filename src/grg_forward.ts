@@ -44,25 +44,24 @@ export class GrgForward {
 
   /**
    * Derives an HMAC key from GRG payload context (chainId + poolAddress).
-   * Falls back to a static domain-separation key when no context is provided.
+   * Both parameters are required — no default key fallback.
    */
-  static deriveHmacKey(chainId?: number, poolAddress?: string): Buffer {
-    if (chainId !== undefined && poolAddress) {
-      const packed = keccak256(
-        AbiCoder.defaultAbiCoder().encode(["uint256", "address"], [chainId, poolAddress])
-      );
-      return Buffer.from(packed.slice(2), "hex"); // 32 bytes
+  static deriveHmacKey(chainId: number, poolAddress: string): Buffer {
+    if (chainId === undefined || chainId === null || !poolAddress) {
+      throw new Error("[GRG] chainId and poolAddress are required for HMAC key derivation. No default key is allowed.");
     }
-    // Default domain-separation key when no context is available
-    return Buffer.from("grg-integrity-hmac-default-key-v1");
+    const packed = keccak256(
+      AbiCoder.defaultAbiCoder().encode(["uint256", "address"], [chainId, poolAddress])
+    );
+    return Buffer.from(packed.slice(2), "hex"); // 32 bytes
   }
 
   // 3. Golay(24,12) Error Correction Encoding
-  static golayEncodeWrapper(data: Uint8Array, hmacKey?: Buffer): Uint8Array {
+  static golayEncodeWrapper(data: Uint8Array, hmacKey: Buffer): Uint8Array {
     const encoded = golayEncode(data);
 
     // 🔱 Integrity: Append 8-byte HMAC-SHA256 of the encoded shard (keyed hash)
-    const key = hmacKey || this.deriveHmacKey();
+    const key = hmacKey;
     const mac = createHmac("sha256", key).update(Buffer.from(encoded)).digest();
     const checksum = mac.subarray(0, 8);
 
@@ -72,7 +71,7 @@ export class GrgForward {
     return final;
   }
 
-  static encode(data: Uint8Array, chainId?: number, poolAddress?: string): Uint8Array[] {
+  static encode(data: Uint8Array, chainId: number, poolAddress: string): Uint8Array[] {
     // R3-P0-3: Reject empty input — roundtrip breaks ([] → [0])
     if (data.length === 0) {
       throw new Error("[GRG] Cannot encode empty input — roundtrip identity violation");

@@ -170,10 +170,10 @@ export class TimeSynthesis {
   // Fix 2: Bounded nonce replay cache (max 10K entries, 60s TTL) — same pattern as protocol_fee.ts
   private usedNonces: Map<string, number> = new Map();
   private readonly MAX_NONCE_CACHE = 10000;
-  private readonly NONCE_TTL_MS = 60000; // 60 seconds
+  private readonly NONCE_TTL_MS = 300_000; // 5 minutes — must exceed PoT expiresAt (60s) to prevent edge-case replay
 
   constructor(config?: { sources?: string[] }) {
-    const sourceNames = config?.sources || ['nist', 'kriss', 'google'];
+    const sourceNames = config?.sources || ['nist', 'kriss', 'google', 'cloudflare'];
 
     for (const s of sourceNames) {
       if (s === 'nist') {
@@ -185,6 +185,8 @@ export class TimeSynthesis {
         this.sources.push(new NTPSource('kriss', 'time.kriss.re.kr'));
       } else if (s === 'google' || s === 'galileo') {
         this.sources.push(new HTTPSTimeSource('google', 'https://time.google.com/'));
+      } else if (s === 'cloudflare') {
+        this.sources.push(new HTTPSTimeSource('cloudflare', 'https://time.cloudflare.com/'));
       }
     }
   }

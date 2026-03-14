@@ -4,22 +4,25 @@ pragma solidity ^0.8.27;
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title ProtocolFee
  * @dev EIP-712 signed fee collection for the OpenTTT protocol.
- * Collects protocol fees with replay protection via nonce tracking.
+ * Collects protocol fees in ERC-20 tokens (e.g. USDC) with replay protection via sequential nonces.
  */
 contract ProtocolFee is EIP712, Ownable {
     using ECDSA for bytes32;
+    using SafeERC20 for IERC20;
 
     bytes32 private constant FEE_TYPEHASH =
-        keccak256("Fee(address payer,uint256 amount,uint256 nonce,uint256 deadline)");
+        keccak256("CollectFee(address token,uint256 amount,uint256 nonce,uint256 deadline)");
 
     address public feeRecipient;
     mapping(address => uint256) public nonces;
 
-    event FeeCollected(address indexed payer, uint256 amount, uint256 nonce);
+    event FeeCollected(address indexed payer, address indexed token, uint256 amount, uint256 nonce);
     event FeeRecipientUpdated(address indexed oldRecipient, address indexed newRecipient);
 
     error InvalidSignature();
@@ -34,41 +37,41 @@ contract ProtocolFee is EIP712, Ownable {
 
     /**
      * @dev Collect a protocol fee with EIP-712 signed authorization.
-     * @param payer Address paying the fee (must match the signer)
-     * @param amount Fee amount in wei
+     * The caller must have approved this contract to spend `amount` of `token`.
+     * @param token ERC-20 token address used for fee payment
+     * @param amount Fee amount in token units
+     * @param signature Compact ECDSA signature (65 bytes)
+     * @param nonce Sequential nonce for replay protection (must match sender's current nonce)
      * @param deadline Timestamp after which the signature expires
-     * @param v ECDSA recovery id
-     * @param r ECDSA r value
-     * @param s ECDSA s value
      */
     function collectFee(
-        address payer,
+        address token,
         uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
+        bytes calldata signature,
+        uint256 nonce,
+        uint256 deadline
     ) external {
         if (block.timestamp > deadline) revert ExpiredDeadline();
         if (amount == 0) revert InsufficientPayment();
+        if (token == address(0)) revert ZeroAddress();
 
-        uint256 currentNonce = nonces[payer];
+        // Sequential nonce check
+        require(nonces[msg.sender] == nonce, "Invalid nonce");
 
         bytes32 structHash = keccak256(
-            abi.encode(FEE_TYPEHASH, payer, amount, currentNonce, deadline)
+            abi.encode(FEE_TYPEHASH, token, amount, nonce, deadline)
         );
         bytes32 digest = _hashTypedDataV4(structHash);
-        address signer = digest.recover(v, r, s);
+        address signer = ECDSA.recover(digest, signature);
 
-        if (signer != payer) revert InvalidSignature();
+        if (signer != msg.sender) revert InvalidSignature();
 
-        nonces[payer] = currentNonce + 1;
+        nonces[msg.sender] = nonce + 1;
 
-        // Transfer fee from caller's msg.value
-        (bool sent, ) = feeRecipient.call{value: amount}("");
-        require(sent, "Fee transfer failed");
+        // Transfer ERC-20 fee from caller to fee recipient
+        IERC20(token).safeTransferFrom(msg.sender, feeRecipient, amount);
 
-        emit FeeCollected(payer, amount, currentNonce);
+        emit FeeCollected(msg.sender, token, amount, nonce);
     }
 
     /**
@@ -95,6 +98,4 @@ contract ProtocolFee is EIP712, Ownable {
     function getDomainSeparator() external view returns (bytes32) {
         return _domainSeparatorV4();
     }
-
-    receive() external payable {}
 }

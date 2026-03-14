@@ -132,4 +132,43 @@ export class PoolRegistry {
   listPools(): string[] {
     return Array.from(this.pools.keys());
   }
+
+  /**
+   * Serialize registry state to JSON for persistence across restarts.
+   * Allows operators to restore pool registrations and stats without re-registering.
+   */
+  serialize(): string {
+    const poolsArray = Array.from(this.pools.entries()).map(([address, stats]) => ({
+      address,
+      chainId: stats.chainId,
+      minted: stats.minted.toString(),
+      burned: stats.burned.toString(),
+    }));
+    const tokenMappings = Array.from(this.tokenToPool.entries()).map(([tokenId, poolAddr]) => ({
+      tokenId,
+      poolAddress: poolAddr,
+    }));
+    return JSON.stringify({ pools: poolsArray, tokenMappings });
+  }
+
+  /**
+   * Reconstruct a PoolRegistry from previously serialized JSON state.
+   */
+  static deserialize(json: string): PoolRegistry {
+    const data = JSON.parse(json);
+    const instance = new PoolRegistry();
+    for (const p of data.pools) {
+      instance.pools.set(p.address, {
+        chainId: p.chainId,
+        minted: BigInt(p.minted),
+        burned: BigInt(p.burned),
+      });
+    }
+    if (data.tokenMappings) {
+      for (const t of data.tokenMappings) {
+        instance.tokenToPool.set(t.tokenId, t.poolAddress);
+      }
+    }
+    return instance;
+  }
 }

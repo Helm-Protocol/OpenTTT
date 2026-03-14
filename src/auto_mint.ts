@@ -1,5 +1,4 @@
 import { ethers, Signer } from "ethers";
-import { randomBytes } from "crypto";
 import { TimeSynthesis } from "./time_synthesis";
 import { DynamicFeeEngine, FeeCalculation } from "./dynamic_fee";
 import { EVMConnector } from "./evm_connector";
@@ -36,6 +35,8 @@ export class AutoMintEngine {
   private consecutiveFailures: number = 0;
   private maxConsecutiveFailures: number = 5;
   private potSigner: PotSigner | null = null;
+  /** Monotonic counter appended to tokenId hash to prevent collision when two mints share the same nanosecond timestamp. */
+  private mintNonce: number = 0;
 
   constructor(config: AutoMintConfig) {
     this.config = config;
@@ -211,11 +212,21 @@ export class AutoMintEngine {
     if (pot.confidence < 0.5) {
       throw new TTTTimeSynthesisError(`[PoT] Insufficient confidence`, `Calculated confidence ${pot.confidence} is below required 0.5`, `Ensure more NTP sources are reachable or decrease uncertainty.`);
     }
+    // Deterministic potHash via ABI.encode — field order is fixed,
+    // independent of JS engine key ordering. External verifiers can
+    // reproduce this hash from the same PoT fields.
+    const nonceHash = ethers.keccak256(ethers.toUtf8Bytes(pot.nonce));
     const potHash = ethers.keccak256(
-      ethers.toUtf8Bytes(
-        JSON.stringify(pot, (key, value) =>
-          typeof value === 'bigint' ? value.toString() : value
-        )
+      ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint64", "uint64", "uint8", "uint8", "uint32", "bytes32"],
+        [
+          pot.timestamp,
+          pot.expiresAt,
+          pot.sources,
+          pot.stratum,
+          Math.round(pot.confidence * 1_000_000),
+          nonceHash
+        ]
       )
     );
 
@@ -226,11 +237,13 @@ export class AutoMintEngine {
     }
 
     // 2. Generate tokenId (keccak256)
-    // Unique ID based on chainId, poolAddress, timestamp
+    // Unique ID based on chainId, poolAddress, timestamp, and a monotonic nonce
+    // to prevent collision if two mints occur at the same nanosecond timestamp.
+    const nonceSuffix = this.mintNonce++;
     const tokenId = ethers.keccak256(
       ethers.AbiCoder.defaultAbiCoder().encode(
-        ["uint256", "address", "uint64"],
-        [BigInt(this.config.chainId), this.config.poolAddress, synthesized.timestamp]
+        ["uint256", "address", "uint64", "uint256"],
+        [BigInt(this.config.chainId), this.config.poolAddress, synthesized.timestamp, BigInt(nonceSuffix)]
       )
     );
 
@@ -298,7 +311,13 @@ export class AutoMintEngine {
         // NOTE: Single-threaded JS guarantees atomicity between nonce generation,
         // signing, and collection below. If running multiple AutoMintEngine instances
         // (e.g., worker_threads or cluster), a separate nonce manager with locking is required.
-        const nonce = BigInt("0x" + randomBytes(8).toString("hex")); // Cryptographic nonce
+        // Sequential nonce: query contract for current nonce, matching ProtocolFee.sol's require(nonces[msg.sender] == nonce)
+        const feeContract = new ethers.Contract(
+          this.config.feeCollectorAddress!,
+          ["function getNonce(address) external view returns (uint256)"],
+          this.evmConnector.getProvider()
+        );
+        const nonce = BigInt(await feeContract.getNonce(recipient));
         const deadline = Math.floor(Date.now() / 1000) + 3600; // 1 hour validity
 
         const signature = await this.signFeeMessage(feeCalculation, nonce, deadline);
@@ -347,7 +366,7 @@ export class AutoMintEngine {
     }
     
     const domain = {
-      name: "Helm Protocol",
+      name: "OpenTTT_ProtocolFee",
       version: "1",
       chainId: this.config.chainId,
       verifyingContract: this.config.feeCollectorAddress!

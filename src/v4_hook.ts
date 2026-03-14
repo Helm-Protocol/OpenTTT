@@ -6,8 +6,16 @@ import { BeforeSwapParams, AfterSwapParams } from "./types";
 import { logger } from "./logger";
 
 /**
- * UniswapV4Hook - TTT-based Uniswap V4 Hook Simulation
- * Provides actual logic for TTT balance verification and fee management.
+ * UniswapV4Hook - TTT-based Uniswap V4 Hook Simulation (SDK-side)
+ *
+ * This is a simulation/SDK-side hook that mirrors the logic of a Uniswap V4 hook
+ * for off-chain validation and testing. It is NOT the actual Solidity on-chain hook.
+ *
+ * The actual V4 hook contract should implement IHooks from @uniswap/v4-core
+ * (see: https://github.com/Uniswap/v4-core/blob/main/src/interfaces/IHooks.sol).
+ *
+ * Provides TTT balance verification and fee management logic that can be used
+ * to validate swap eligibility before submitting on-chain transactions.
  */
 export class UniswapV4Hook {
   private evmConnector: EVMConnector;

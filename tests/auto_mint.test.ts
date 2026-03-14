@@ -50,6 +50,8 @@ jest.mock("../src/time_synthesis", () => {
         sources: 2,
         stratum: 1,
         confidence: 0.99,
+        nonce: "auto-mint-test-nonce-0001",
+        expiresAt: BigInt(Date.now()) + 60_000n,
         signatures: [
           { source: "nist", timestamp: BigInt(Date.now()) * 1_000_000n, uncertainty: 5 },
           { source: "google", timestamp: BigInt(Date.now()) * 1_000_000n, uncertainty: 5 }

@@ -5,7 +5,9 @@ import { GrgForward } from "../src/grg_forward";
 
 describe("AdaptiveSwitch: Turbo/Full Mechanism", () => {
   const mockData = new Uint8Array(12).fill(1);
-  const mockGrgPayload = GrgForward.encode(mockData);
+  const testChainId = 1;
+  const testPoolAddress = "0x1234567890123456789012345678901234567890";
+  const mockGrgPayload = GrgForward.encode(mockData, testChainId, testPoolAddress);
   const txs = ["tx1", "tx2", "tx3"];
   const timestamp = Date.now();
   let adaptiveSwitch: AdaptiveSwitch;
@@ -25,12 +27,12 @@ describe("AdaptiveSwitch: Turbo/Full Mechanism", () => {
 
     // 1-19 blocks: Still FULL (need minimum 20 for history)
     for (let i = 0; i < 19; i++) {
-      const mode = adaptiveSwitch.verifyBlock(block, tttRecord);
+      const mode = adaptiveSwitch.verifyBlock(block, tttRecord, testChainId, testPoolAddress);
       expect(mode).toBe(AdaptiveMode.FULL);
     }
 
     // 20th block: Threshold 100% (>= 90%) -> Transition to TURBO
-    const mode = adaptiveSwitch.verifyBlock(block, tttRecord);
+    const mode = adaptiveSwitch.verifyBlock(block, tttRecord, testChainId, testPoolAddress);
     expect(mode).toBe(AdaptiveMode.TURBO);
     expect(adaptiveSwitch.getFeeDiscount()).toBe(0.2);
   });
@@ -40,7 +42,7 @@ describe("AdaptiveSwitch: Turbo/Full Mechanism", () => {
     const tamperedRecord: TTTRecord = { time: timestamp, txOrder: ["tx3", "tx2", "tx1"], grgPayload: mockGrgPayload };
 
     for (let i = 0; i < 30; i++) {
-      const mode = adaptiveSwitch.verifyBlock(block, tamperedRecord);
+      const mode = adaptiveSwitch.verifyBlock(block, tamperedRecord, testChainId, testPoolAddress);
       expect(mode).toBe(AdaptiveMode.FULL);
     }
     expect(adaptiveSwitch.getCurrentMode()).toBe(AdaptiveMode.FULL);
@@ -51,7 +53,7 @@ describe("AdaptiveSwitch: Turbo/Full Mechanism", () => {
     const tamperedRecord: TTTRecord = { time: timestamp + 200, txOrder: txs, grgPayload: mockGrgPayload };
 
     for (let i = 0; i < 30; i++) {
-      const mode = adaptiveSwitch.verifyBlock(block, tamperedRecord);
+      const mode = adaptiveSwitch.verifyBlock(block, tamperedRecord, testChainId, testPoolAddress);
       expect(mode).toBe(AdaptiveMode.FULL);
     }
   });
@@ -64,7 +66,7 @@ describe("AdaptiveSwitch: Turbo/Full Mechanism", () => {
 
     // 1. Become Honest -> TURBO (after 20 blocks)
     for (let i = 0; i < 20; i++) {
-      adaptiveSwitch.verifyBlock(honestBlock, honestRecord);
+      adaptiveSwitch.verifyBlock(honestBlock, honestRecord, testChainId, testPoolAddress);
     }
     expect(adaptiveSwitch.getCurrentMode()).toBe(AdaptiveMode.TURBO);
 
@@ -76,16 +78,16 @@ describe("AdaptiveSwitch: Turbo/Full Mechanism", () => {
     // Add 3 F: [T x 17, F, F, F] -> 17/20 = 85% (Still TURBO, >= 85%)
     // Add 4 F: [T x 16, F, F, F, F] -> 16/20 = 80% (Switch to FULL, < 85%)
 
-    adaptiveSwitch.verifyBlock(honestBlock, maliciousRecord); // 21st
+    adaptiveSwitch.verifyBlock(honestBlock, maliciousRecord, testChainId, testPoolAddress); // 21st
     expect(adaptiveSwitch.getCurrentMode()).toBe(AdaptiveMode.TURBO);
 
-    adaptiveSwitch.verifyBlock(honestBlock, maliciousRecord); // 22nd
+    adaptiveSwitch.verifyBlock(honestBlock, maliciousRecord, testChainId, testPoolAddress); // 22nd
     expect(adaptiveSwitch.getCurrentMode()).toBe(AdaptiveMode.TURBO);
 
-    adaptiveSwitch.verifyBlock(honestBlock, maliciousRecord); // 23rd
+    adaptiveSwitch.verifyBlock(honestBlock, maliciousRecord, testChainId, testPoolAddress); // 23rd
     expect(adaptiveSwitch.getCurrentMode()).toBe(AdaptiveMode.TURBO); // 85% = maintain threshold
 
-    adaptiveSwitch.verifyBlock(honestBlock, maliciousRecord); // 24th — drops below 85%
+    adaptiveSwitch.verifyBlock(honestBlock, maliciousRecord, testChainId, testPoolAddress); // 24th — drops below 85%
     expect(adaptiveSwitch.getCurrentMode()).toBe(AdaptiveMode.FULL);
     expect(adaptiveSwitch.getFeeDiscount()).toBe(0.0);
 
@@ -96,7 +98,7 @@ describe("AdaptiveSwitch: Turbo/Full Mechanism", () => {
     // After 20 honest blocks, cooldown also needs to expire
     // P2-1: penaltyCooldown = 20 (exponential backoff base)
     for (let i = 0; i < 40; i++) { // enough to clear cooldown + fill window
-      adaptiveSwitch.verifyBlock(honestBlock, honestRecord);
+      adaptiveSwitch.verifyBlock(honestBlock, honestRecord, testChainId, testPoolAddress);
     }
     expect(adaptiveSwitch.getCurrentMode()).toBe(AdaptiveMode.TURBO);
     expect(adaptiveSwitch.getFeeDiscount()).toBe(0.2);

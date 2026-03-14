@@ -45,6 +45,7 @@ export interface PriceOracleConfig {
 export class DynamicFeeEngine {
   private priceCache: { price: bigint; timestamp: number } | null = null;
   private provider: JsonRpcProvider | null = null;
+  private rpcUrls: string[] = [];
   private config: PriceOracleConfig;
 
   // P2-3: Recommended max cache duration for DEX price freshness
@@ -62,9 +63,42 @@ export class DynamicFeeEngine {
     }
   }
 
-  async connect(rpcUrl: string): Promise<void> {
-    if (!rpcUrl) throw new Error("[DynamicFee] RPC URL is required");
-    this.provider = new JsonRpcProvider(rpcUrl);
+  /**
+   * Connect to an RPC provider. Accepts a single URL or an array of URLs
+   * for multi-RPC fallback. On connection failure, the next URL is tried.
+   */
+  async connect(rpcUrl: string | string[]): Promise<void> {
+    const urls = Array.isArray(rpcUrl) ? rpcUrl : [rpcUrl];
+    if (urls.length === 0 || urls.every(u => !u)) {
+      throw new Error("[DynamicFee] At least one valid RPC URL is required");
+    }
+    this.rpcUrls = urls.filter(u => !!u);
+    await this.connectToNext();
+  }
+
+  /**
+   * Iterate through stored RPC URLs and connect to the first one that succeeds.
+   * Throws if all URLs fail.
+   */
+  private async connectToNext(): Promise<void> {
+    let lastError: Error | null = null;
+    for (const url of this.rpcUrls) {
+      try {
+        const provider = new JsonRpcProvider(url);
+        // Verify connectivity by requesting the network
+        await provider.getNetwork();
+        this.provider = provider;
+        logger.info(`[DynamicFee] Connected to RPC: ${url}`);
+        return;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        logger.warn(`[DynamicFee] RPC connection failed for ${url}: ${lastError.message}`);
+      }
+    }
+    // If all URLs failed, fall back to the first URL without connectivity check
+    // so that subsequent calls can still attempt requests
+    this.provider = new JsonRpcProvider(this.rpcUrls[0]);
+    logger.warn(`[DynamicFee] All RPC URLs failed connectivity check, using first URL as fallback`);
   }
 
   async getTTTPriceUsd(): Promise<bigint> {
