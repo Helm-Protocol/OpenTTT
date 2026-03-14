@@ -37,15 +37,24 @@ export const BASE_MAINNET: NetworkConfig = {
   usdcAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
 };
 
+export const ETH_SEPOLIA: NetworkConfig = {
+  chainId: 11155111,
+  rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
+  tttAddress: "0x8C633b05b833a476925F7d9818da6E215760F2c7",
+  protocolFeeAddress: "0x5DeB2888904c4f71879b8813352E903992ffECD3",
+  usdcAddress: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+};
+
 export const BASE_SEPOLIA: NetworkConfig = {
   chainId: 84532,
   rpcUrl: "https://sepolia.base.org",
-  tttAddress: "0xde357135cA493e59680182CDE9E1c6A4dA400811",
-  protocolFeeAddress: "0xE289337d3a79b22753BDA03510a8b8E4D1040F21",
+  tttAddress: "0x0000000000000000000000000000000000000000",
+  protocolFeeAddress: "0x0000000000000000000000000000000000000000",
   usdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
 };
 
 export const NETWORKS: Record<string, NetworkConfig> = {
   base: BASE_MAINNET,
-  sepolia: BASE_SEPOLIA,
+  sepolia: ETH_SEPOLIA,
+  baseSepolia: BASE_SEPOLIA,
 };
