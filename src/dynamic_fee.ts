@@ -7,11 +7,22 @@ import { logger } from "./logger";
 import { TierType } from "./types";
 
 // Target USD cost per tier (Scale: 1e6)
+//
+// AUTHORITATIVE PRICING (Code is truth — Yellow Paper needs update):
+//   YP1 discrepancy: Yellow Paper states T3_micro = $1.50, but code uses $12.00.
+//   The $12.00 value was set intentionally for IoT micro-tick pricing after
+//   cost analysis. The Yellow Paper value ($1.50) is outdated and must be
+//   updated to match this code. See: reports/20260314_audit_results.md YP1.
+//
+// Additional YP discrepancies (code is authoritative in all cases):
+//   YP5: TURBO entry threshold — YP says 90%, code uses 95% (more conservative).
+//   YP6: BOOTSTRAP mintFee — YP says 3%, code uses 5% (500 basis points).
+//   YP7: PoT min confidence — YP says 0.7, code uses 0.5 (auto_mint.ts).
 export const TIER_USD_MICRO: Record<string, bigint> = {
   T0_epoch: 1000n,    // $0.001 * 1e6
   T1_block: 10000n,   // $0.01 * 1e6
   T2_slot:  240000n,  // $0.24 * 1e6
-  T3_micro: 12000000n, // $12 * 1e6
+  T3_micro: 12000000n, // $12.00 * 1e6 — YP says $1.50, code is authoritative
 };
 
 // Helm protocol fee tiers (Scale: 1e4, e.g., 500 = 5%)
