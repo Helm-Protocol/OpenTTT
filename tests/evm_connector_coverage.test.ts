@@ -108,4 +108,42 @@ describe("EVMConnector — Coverage Extension", () => {
     // Should not throw — just silently skip since tttContract and protocolFeeContract are null
     await expect(connector.subscribeToEvents({})).resolves.toBeUndefined();
   });
+
+  // --- New: RPC Failover, Reconnect, Disconnect tests ---
+
+  test("Constructor with options stores fallback URLs", () => {
+    const conn = new EVMConnector({
+      fallbackRpcUrls: ["https://fallback1.example.com", "https://fallback2.example.com"],
+      maxReconnectAttempts: 5,
+    });
+    expect(conn).toBeInstanceOf(EVMConnector);
+  });
+
+  test("isConnected returns false before connect", () => {
+    expect(connector.isConnected()).toBe(false);
+  });
+
+  test("disconnect is safe to call before connect", () => {
+    expect(() => connector.disconnect()).not.toThrow();
+    expect(connector.isConnected()).toBe(false);
+  });
+
+  test("disconnect clears all state", () => {
+    connector.disconnect();
+    expect(connector.isConnected()).toBe(false);
+    expect(() => connector.getSigner()).toThrow();
+    expect(() => connector.getProvider()).toThrow();
+  });
+
+  test("reconnect throws when no prior connection", async () => {
+    await expect(connector.reconnect()).rejects.toThrow("Cannot reconnect");
+  });
+
+  test("connect with fallback RPCs — all fail throws network error", async () => {
+    const conn = new EVMConnector({
+      fallbackRpcUrls: ["https://bad-fallback-1.invalid", "https://bad-fallback-2.invalid"],
+    });
+    await expect(conn.connect("https://bad-primary.invalid", "0x" + "ab".repeat(32)))
+      .rejects.toThrow();
+  });
 });
