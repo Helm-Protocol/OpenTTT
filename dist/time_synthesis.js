@@ -34,8 +34,10 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TimeSynthesis = exports.NTPSource = void 0;
+const crypto = __importStar(require("crypto"));
 const dgram = __importStar(require("dgram"));
 const buffer_1 = require("buffer");
+const ethers_1 = require("ethers");
 const logger_1 = require("./logger");
 const errors_1 = require("./errors");
 const NTP_OFFSET_1900_TO_1970 = 2208988800n;
@@ -80,7 +82,6 @@ class NTPSource {
                 // T2: Receive Timestamp (Server received request)
                 const t2_sec = BigInt(msg.readUInt32BE(32));
                 const t2_frac = BigInt(msg.readUInt32BE(36));
-                // R2-P1-2: Guard against pre-1970 timestamps from buggy/malicious NTP servers
                 if (t2_sec <= NTP_OFFSET_1900_TO_1970) {
                     reject(new errors_1.TTTTimeSynthesisError(`[NTP] Invalid T2 timestamp from ${this.host}`, `${t2_sec} <= NTP epoch offset`, "The NTP server returned a pre-1970 timestamp. Use a reliable NTP server."));
                     return;
@@ -119,7 +120,6 @@ class NTPSource {
                 });
             }
             catch (sendErr) {
-                // R2-P0-1: Ensure socket is closed even if send() throws synchronously
                 clearTimeout(timeout);
                 try {
                     client.close();
@@ -133,6 +133,10 @@ class NTPSource {
 exports.NTPSource = NTPSource;
 class TimeSynthesis {
     sources = [];
+    // Fix 2: Bounded nonce replay cache (max 10K entries, 60s TTL) — same pattern as protocol_fee.ts
+    usedNonces = new Map();
+    MAX_NONCE_CACHE = 10000;
+    NONCE_TTL_MS = 60000; // 60 seconds
     constructor(config) {
         const sourceNames = config?.sources || ['nist', 'kriss', 'google'];
         for (const s of sourceNames) {
@@ -143,7 +147,6 @@ class TimeSynthesis {
                 this.sources.push(new NTPSource('kriss', 'time.kriss.re.kr'));
             }
             else if (s === 'google' || s === 'galileo') {
-                // time.galileo.eu doesn't exist, using time.google.com as a reliable global standard
                 this.sources.push(new NTPSource('google', 'time.google.com'));
             }
         }
@@ -154,12 +157,6 @@ class TimeSynthesis {
             throw new errors_1.TTTTimeSynthesisError(`Source ${name} not found`, "Requested source name is not configured", "Configure the source in the TimeSynthesis constructor.");
         return source.getTime();
     }
-    /**
-     * 3개 소스의 중앙값(median) 알고리즘을 사용한 타임 합성.
-     * 1개 실패 시: 나머지 2개의 평균
-     * 2개 실패 시: 마지막 1개 사용 + 경고
-     * 3개 전부 실패 시: throw Error
-     */
     async synthesize() {
         const readings = [];
         const results = await Promise.allSettled(this.sources.map(s => s.getTime()));
@@ -178,25 +175,22 @@ class TimeSynthesis {
             logger_1.logger.warn(`[TimeSynthesis] WARNING: Only 1 NTP source available (${readings[0].source}). Time may be unreliable.`);
             return {
                 timestamp: readings[0].timestamp,
-                confidence: 1 / this.sources.length, // R2-P2-6: Dynamic instead of hard-coded 0.33
+                confidence: 1 / this.sources.length,
                 uncertainty: readings[0].uncertainty,
                 sources: 1,
                 stratum: readings[0].stratum
             };
         }
-        // Sort by timestamp
         readings.sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0));
         let finalTimestamp;
         let finalUncertainty;
         let finalStratum;
         if (readings.length === 2) {
-            // Average of 2
             finalTimestamp = (readings[0].timestamp + readings[1].timestamp) / 2n;
             finalUncertainty = (readings[0].uncertainty + readings[1].uncertainty) / 2;
             finalStratum = Math.min(readings[0].stratum, readings[1].stratum);
         }
         else {
-            // Median of 3 (or more)
             const mid = Math.floor(readings.length / 2);
             finalTimestamp = readings[mid].timestamp;
             finalUncertainty = readings[mid].uncertainty;
@@ -211,10 +205,9 @@ class TimeSynthesis {
         };
     }
     /**
-     * 합의된 시간과 서명(이론적 증명 데이터)을 포함한 PoT 생성
+     * Generates a Proof of Time (PoT) with verification of source readings.
      */
     async generateProofOfTime() {
-        // P1-1 FIX: Single NTP fetch — reuse synthesize() result instead of double-fetching
         const readings = [];
         const results = await Promise.allSettled(this.sources.map(s => s.getTime()));
         for (const res of results) {
@@ -225,7 +218,6 @@ class TimeSynthesis {
         if (readings.length === 0) {
             throw new errors_1.TTTTimeSynthesisError('[TimeSynthesis] Cannot generate PoT: All NTP sources failed.', "No successful readings from NTP servers.", "Check internet connection and UDP 123 access.");
         }
-        // Reuse readings directly — no redundant synthesize() call
         readings.sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0));
         let finalTimestamp;
         let finalUncertainty;
@@ -246,37 +238,192 @@ class TimeSynthesis {
             finalUncertainty = readings[mid].uncertainty;
             finalStratum = readings[mid].stratum;
         }
-        // In a real network, signatures would be ECDSA over the timestamp.
-        // For SDK simulation, we encapsulate the raw data.
-        const signatures = readings.map(r => ({
+        const sourceReadings = readings.map(r => ({
             source: r.source,
             timestamp: r.timestamp,
             uncertainty: r.uncertainty
         }));
-        return {
+        // Fix 2: PoT nonce + expiration for replay protection
+        const nonce = crypto.randomBytes(16).toString("hex");
+        const expiresAt = BigInt(Date.now()) + 60000n; // +60 seconds
+        const pot = {
             timestamp: finalTimestamp,
             uncertainty: finalUncertainty,
             sources: readings.length,
             stratum: finalStratum,
             confidence: readings.length / this.sources.length,
-            signatures
+            sourceReadings,
+            nonce,
+            expiresAt,
         };
+        // Verification Logic: Ensure all source timestamps are within tolerance of synthesized median
+        if (!this.verifyProofOfTime(pot)) {
+            throw new errors_1.TTTTimeSynthesisError("[PoT] Self-verification failed", "Source readings are too far apart from synthesized median", "Check for high network jitter or malicious NTP spoofing.");
+        }
+        return pot;
     }
     /**
      * Verify Proof of Time integrity.
+     * Fix 2: Checks expiration and nonce replay.
+     * Fix 3: Uses sourceReadings (renamed from signatures).
      */
     verifyProofOfTime(pot) {
         const TOLERANCE_NS = 100000000n; // 100ms
-        if (pot.signatures.length < 2)
+        if (pot.sourceReadings.length === 0)
             return false;
         if (pot.confidence <= 0)
             return false;
-        for (const sig of pot.signatures) {
+        // Fix 2: Expiration check
+        if (BigInt(Date.now()) > pot.expiresAt) {
+            logger_1.logger.warn(`[TimeSynthesis] PoT expired at ${pot.expiresAt}`);
+            return false;
+        }
+        // Fix 2: Nonce replay protection with bounded cache + TTL cleanup
+        const now = Date.now();
+        // TTL cleanup pass (evict expired entries)
+        if (this.usedNonces.size > this.MAX_NONCE_CACHE / 2) {
+            for (const [k, ts] of this.usedNonces) {
+                if (now - ts > this.NONCE_TTL_MS)
+                    this.usedNonces.delete(k);
+            }
+        }
+        if (this.usedNonces.has(pot.nonce)) {
+            logger_1.logger.warn(`[TimeSynthesis] Duplicate nonce detected: ${pot.nonce}`);
+            return false;
+        }
+        if (this.usedNonces.size >= this.MAX_NONCE_CACHE) {
+            // Evict oldest entry
+            const oldest = this.usedNonces.keys().next().value;
+            if (oldest !== undefined)
+                this.usedNonces.delete(oldest);
+        }
+        this.usedNonces.set(pot.nonce, now);
+        for (const sig of pot.sourceReadings) {
             const diff = sig.timestamp > pot.timestamp ? sig.timestamp - pot.timestamp : pot.timestamp - sig.timestamp;
-            if (diff > TOLERANCE_NS)
+            if (diff > TOLERANCE_NS) {
+                logger_1.logger.warn(`[TimeSynthesis] Reading from ${sig.source} outside tolerance: ${diff}ns`);
                 return false;
+            }
         }
         return true;
+    }
+    /**
+     * Generates a bytes32 hash of the PoT for on-chain submission.
+     */
+    static getOnChainHash(pot) {
+        return (0, ethers_1.keccak256)(ethers_1.AbiCoder.defaultAbiCoder().encode(["uint64", "uint32", "uint8", "uint8", "uint32"], [
+            pot.timestamp / 1000000n, // Convert to ms for storage efficiency
+            Math.round(pot.uncertainty * 1000), // Scale uncertainty
+            pot.sources,
+            pot.stratum,
+            Math.round(pot.confidence * 1000000)
+        ]));
+    }
+    /**
+     * Serializes PoT to JSON string.
+     */
+    static serializeToJSON(pot) {
+        return JSON.stringify(pot, (key, value) => typeof value === 'bigint' ? value.toString() : value);
+    }
+    /**
+     * Deserializes PoT from JSON string.
+     */
+    static deserializeFromJSON(json) {
+        const data = JSON.parse(json);
+        return {
+            ...data,
+            timestamp: BigInt(data.timestamp),
+            expiresAt: BigInt(data.expiresAt),
+            sourceReadings: data.sourceReadings.map((s) => ({
+                ...s,
+                timestamp: BigInt(s.timestamp)
+            }))
+        };
+    }
+    /**
+     * Serializes PoT to compact binary format.
+     * Layout: header(19) + nonce(1+N) + expiresAt(8) + readings(variable)
+     */
+    static serializeToBinary(pot) {
+        const nonceBytes = buffer_1.Buffer.from(pot.nonce, "utf8");
+        // Header: timestamp(8) + uncertainty(4) + sources(1) + stratum(1) + confidence(4) + readingCount(1) = 19
+        // + nonceLen(1) + nonce(N) + expiresAt(8)
+        let size = 19 + 1 + nonceBytes.length + 8;
+        for (const sig of pot.sourceReadings) {
+            size += 1 + sig.source.length + 8 + 4; // nameLen(1) + name(N) + ts(8) + unc(4)
+        }
+        const buf = buffer_1.Buffer.alloc(size);
+        let offset = 0;
+        buf.writeBigUInt64BE(pot.timestamp, offset);
+        offset += 8;
+        buf.writeFloatBE(pot.uncertainty, offset);
+        offset += 4;
+        buf.writeUInt8(pot.sources, offset);
+        offset += 1;
+        buf.writeUInt8(pot.stratum, offset);
+        offset += 1;
+        buf.writeFloatBE(pot.confidence, offset);
+        offset += 4;
+        buf.writeUInt8(pot.sourceReadings.length, offset);
+        offset += 1;
+        // Nonce
+        buf.writeUInt8(nonceBytes.length, offset);
+        offset += 1;
+        nonceBytes.copy(buf, offset);
+        offset += nonceBytes.length;
+        // ExpiresAt
+        buf.writeBigUInt64BE(pot.expiresAt, offset);
+        offset += 8;
+        for (const sig of pot.sourceReadings) {
+            buf.writeUInt8(sig.source.length, offset);
+            offset += 1;
+            buf.write(sig.source, offset);
+            offset += sig.source.length;
+            buf.writeBigUInt64BE(sig.timestamp, offset);
+            offset += 8;
+            buf.writeFloatBE(sig.uncertainty, offset);
+            offset += 4;
+        }
+        return buf;
+    }
+    /**
+     * Deserializes PoT from compact binary format.
+     */
+    static deserializeFromBinary(buf) {
+        let offset = 0;
+        const timestamp = buf.readBigUInt64BE(offset);
+        offset += 8;
+        const uncertainty = buf.readFloatBE(offset);
+        offset += 4;
+        const sources = buf.readUInt8(offset);
+        offset += 1;
+        const stratum = buf.readUInt8(offset);
+        offset += 1;
+        const confidence = buf.readFloatBE(offset);
+        offset += 4;
+        const sigCount = buf.readUInt8(offset);
+        offset += 1;
+        // Nonce
+        const nonceLen = buf.readUInt8(offset);
+        offset += 1;
+        const nonce = buf.toString('utf8', offset, offset + nonceLen);
+        offset += nonceLen;
+        // ExpiresAt
+        const expiresAt = buf.readBigUInt64BE(offset);
+        offset += 8;
+        const sourceReadings = [];
+        for (let i = 0; i < sigCount; i++) {
+            const nameLen = buf.readUInt8(offset);
+            offset += 1;
+            const source = buf.toString('utf8', offset, offset + nameLen);
+            offset += nameLen;
+            const ts = buf.readBigUInt64BE(offset);
+            offset += 8;
+            const unc = buf.readFloatBE(offset);
+            offset += 4;
+            sourceReadings.push({ source, timestamp: ts, uncertainty: unc });
+        }
+        return { timestamp, uncertainty, sources, stratum, confidence, sourceReadings, nonce, expiresAt };
     }
 }
 exports.TimeSynthesis = TimeSynthesis;

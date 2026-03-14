@@ -3,21 +3,23 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GrgInverse = void 0;
 const crypto_1 = require("crypto");
 const golay_1 = require("./golay");
+const grg_forward_1 = require("./grg_forward");
 const logger_1 = require("./logger");
 const reed_solomon_1 = require("./reed_solomon");
 class GrgInverse {
     // 1. Golay Decoding & Integrity Check 🔱
-    static golayDecodeWrapper(data) {
+    static golayDecodeWrapper(data, hmacKey) {
         if (data.length < 8)
             throw new Error("GRG shard too short for checksum");
         // Split data and checksum (last 8 bytes)
         const encoded = data.subarray(0, data.length - 8);
         const checksum = data.subarray(data.length - 8);
-        // Verify SHA-256 Checksum (B1-5: 4 -> 8 bytes)
-        const hash = (0, crypto_1.createHash)("sha256").update(Buffer.from(encoded)).digest();
-        const expected = hash.subarray(0, 8);
+        // Verify HMAC-SHA256 Checksum (keyed hash, B1-5: 8 bytes truncated)
+        const key = hmacKey || grg_forward_1.GrgForward.deriveHmacKey();
+        const mac = (0, crypto_1.createHmac)("sha256", key).update(Buffer.from(encoded)).digest();
+        const expected = mac.subarray(0, 8);
         if (!Buffer.from(checksum).equals(Buffer.from(expected))) {
-            throw new Error("GRG tamper detected: SHA-256 checksum mismatch");
+            throw new Error("GRG tamper detected: HMAC-SHA256 checksum mismatch");
         }
         // Proceed to Golay decode
         const res = (0, golay_1.golayDecode)(encoded);
@@ -62,11 +64,12 @@ class GrgInverse {
         }
         return new Uint8Array(result);
     }
-    static verify(data, originalShards) {
+    static verify(data, originalShards, chainId, poolAddress) {
         try {
+            const hmacKey = grg_forward_1.GrgForward.deriveHmacKey(chainId, poolAddress);
             const decodedShards = originalShards.map(s => {
                 try {
-                    return this.golayDecodeWrapper(s);
+                    return this.golayDecodeWrapper(s, hmacKey);
                 }
                 catch {
                     return null;

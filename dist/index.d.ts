@@ -19,3 +19,4 @@ export * from "./signer";
 export * from "./networks";
 export * from "./reed_solomon";
 export * from "./errors";
+export * from "./pot_signer";

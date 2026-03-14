@@ -1,6 +1,7 @@
 import { Signer } from "ethers";
 import { SignerConfig } from "./signer";
 import { NetworkConfig } from "./networks";
+import { PotSignature } from "./pot_signer";
 export type TierType = "T0_epoch" | "T1_block" | "T2_slot" | "T3_micro";
 export declare const TierIntervals: Record<TierType, number>;
 /**
@@ -52,6 +53,10 @@ export interface TTTClientConfig {
      * Optional: Recipient for protocol fees
      */
     protocolFeeRecipient?: string;
+    /**
+     * Optional: Automatically register SIGINT handler for graceful shutdown
+     */
+    enableGracefulShutdown?: boolean;
 }
 /**
  * Internal configuration used by engines.
@@ -129,9 +134,13 @@ export interface ProofOfTime {
     sources: number;
     stratum: number;
     confidence: number;
-    signatures: {
+    sourceReadings: {
         source: string;
         timestamp: bigint;
         uncertainty: number;
     }[];
+    nonce: string;
+    expiresAt: bigint;
+    issuerSignature?: PotSignature;
 }
+export type { PotSignature } from "./pot_signer";

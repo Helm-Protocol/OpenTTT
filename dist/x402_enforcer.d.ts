@@ -1,6 +1,7 @@
 import { AdaptiveMode } from "./adaptive_switch";
 import { EVMConnector } from "./evm_connector";
-import { DynamicFeeEngine } from "./dynamic_fee";
+import { ProtocolFeeCollector } from "./protocol_fee";
+import { DynamicFeeEngine, FeeCalculation } from "./dynamic_fee";
 export interface SwapDetails {
     user: string;
     tokenIn: string;
@@ -20,7 +21,7 @@ export declare class X402Enforcer {
     /**
      * Executes on-chain TTT burn via EVMConnector.
      */
-    static deductOnChain(connector: EVMConnector, feeEngine: DynamicFeeEngine, swap: SwapDetails, grgHash: string, tier: number): Promise<string>;
+    static deductOnChain(connector: EVMConnector, feeEngine: DynamicFeeEngine, swap: SwapDetails, grgHash: string, tier: number, feeCollector?: ProtocolFeeCollector, burnFeeCalc?: FeeCalculation, signature?: string, nonce?: bigint, deadline?: number): Promise<string>;
     /**
      * Static validation rule.
      */

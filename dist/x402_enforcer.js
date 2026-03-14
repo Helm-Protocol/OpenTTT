@@ -35,11 +35,20 @@ class X402Enforcer {
     /**
      * Executes on-chain TTT burn via EVMConnector.
      */
-    static async deductOnChain(connector, feeEngine, swap, grgHash, tier) {
+    static async deductOnChain(connector, feeEngine, swap, grgHash, tier, feeCollector, burnFeeCalc, signature, nonce, deadline) {
         logger_1.logger.info(`[x402] Enforcing on-chain settlement for user ${swap.user}...`);
         const cost = await this.getCost(feeEngine, tier);
         try {
             const receipt = await connector.burnTTT(cost, grgHash, tier);
+            // Collect protocol burn fee if feeCollector and required params are provided
+            if (feeCollector && burnFeeCalc && signature && nonce !== undefined && deadline !== undefined) {
+                try {
+                    await feeCollector.collectBurnFee(burnFeeCalc, signature, swap.user, nonce, deadline);
+                }
+                catch (feeError) {
+                    logger_1.logger.error(`[x402] Burn fee collection failed but burn was successful: ${feeError instanceof Error ? feeError.message : feeError}`);
+                }
+            }
             return receipt.hash;
         }
         catch (error) {

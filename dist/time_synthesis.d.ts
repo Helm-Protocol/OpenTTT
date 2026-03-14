@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { TimeReading, SynthesizedTime, ProofOfTime } from "./types";
 export interface TimeSource {
     name: string;
@@ -12,23 +13,43 @@ export declare class NTPSource implements TimeSource {
 }
 export declare class TimeSynthesis {
     private sources;
+    private usedNonces;
+    private readonly MAX_NONCE_CACHE;
+    private readonly NONCE_TTL_MS;
     constructor(config?: {
         sources?: string[];
     });
     getFromSource(name: string): Promise<TimeReading>;
-    /**
-     * 3개 소스의 중앙값(median) 알고리즘을 사용한 타임 합성.
-     * 1개 실패 시: 나머지 2개의 평균
-     * 2개 실패 시: 마지막 1개 사용 + 경고
-     * 3개 전부 실패 시: throw Error
-     */
     synthesize(): Promise<SynthesizedTime>;
     /**
-     * 합의된 시간과 서명(이론적 증명 데이터)을 포함한 PoT 생성
+     * Generates a Proof of Time (PoT) with verification of source readings.
      */
     generateProofOfTime(): Promise<ProofOfTime>;
     /**
      * Verify Proof of Time integrity.
+     * Fix 2: Checks expiration and nonce replay.
+     * Fix 3: Uses sourceReadings (renamed from signatures).
      */
     verifyProofOfTime(pot: ProofOfTime): boolean;
+    /**
+     * Generates a bytes32 hash of the PoT for on-chain submission.
+     */
+    static getOnChainHash(pot: ProofOfTime): string;
+    /**
+     * Serializes PoT to JSON string.
+     */
+    static serializeToJSON(pot: ProofOfTime): string;
+    /**
+     * Deserializes PoT from JSON string.
+     */
+    static deserializeFromJSON(json: string): ProofOfTime;
+    /**
+     * Serializes PoT to compact binary format.
+     * Layout: header(19) + nonce(1+N) + expiresAt(8) + readings(variable)
+     */
+    static serializeToBinary(pot: ProofOfTime): Buffer;
+    /**
+     * Deserializes PoT from compact binary format.
+     */
+    static deserializeFromBinary(buf: Buffer): ProofOfTime;
 }

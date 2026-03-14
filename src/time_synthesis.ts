@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import * as dgram from 'dgram';
 import { Buffer } from 'buffer';
 import { keccak256, AbiCoder } from "ethers";
@@ -108,6 +109,11 @@ export class NTPSource implements TimeSource {
 
 export class TimeSynthesis {
   private sources: TimeSource[] = [];
+
+  // Fix 2: Bounded nonce replay cache (max 10K entries, 60s TTL) — same pattern as protocol_fee.ts
+  private usedNonces: Map<string, number> = new Map();
+  private readonly MAX_NONCE_CACHE = 10000;
+  private readonly NONCE_TTL_MS = 60000; // 60 seconds
 
   constructor(config?: { sources?: string[] }) {
     const sourceNames = config?.sources || ['nist', 'kriss', 'google'];
@@ -221,11 +227,15 @@ export class TimeSynthesis {
       finalStratum = readings[mid].stratum;
     }
 
-    const signatures = readings.map(r => ({
+    const sourceReadings = readings.map(r => ({
       source: r.source,
       timestamp: r.timestamp,
       uncertainty: r.uncertainty
     }));
+
+    // Fix 2: PoT nonce + expiration for replay protection
+    const nonce = crypto.randomBytes(16).toString("hex");
+    const expiresAt = BigInt(Date.now()) + 60_000n; // +60 seconds
 
     const pot: ProofOfTime = {
       timestamp: finalTimestamp,
@@ -233,7 +243,9 @@ export class TimeSynthesis {
       sources: readings.length,
       stratum: finalStratum,
       confidence: readings.length / this.sources.length,
-      signatures
+      sourceReadings,
+      nonce,
+      expiresAt,
     };
 
     // Verification Logic: Ensure all source timestamps are within tolerance of synthesized median
@@ -246,16 +258,43 @@ export class TimeSynthesis {
 
   /**
    * Verify Proof of Time integrity.
+   * Fix 2: Checks expiration and nonce replay.
+   * Fix 3: Uses sourceReadings (renamed from signatures).
    */
   verifyProofOfTime(pot: ProofOfTime): boolean {
     const TOLERANCE_NS = 100_000_000n; // 100ms
-    if (pot.signatures.length === 0) return false;
+    if (pot.sourceReadings.length === 0) return false;
     if (pot.confidence <= 0) return false;
 
-    for (const sig of pot.signatures) {
+    // Fix 2: Expiration check
+    if (BigInt(Date.now()) > pot.expiresAt) {
+      logger.warn(`[TimeSynthesis] PoT expired at ${pot.expiresAt}`);
+      return false;
+    }
+
+    // Fix 2: Nonce replay protection with bounded cache + TTL cleanup
+    const now = Date.now();
+    // TTL cleanup pass (evict expired entries)
+    if (this.usedNonces.size > this.MAX_NONCE_CACHE / 2) {
+      for (const [k, ts] of this.usedNonces) {
+        if (now - ts > this.NONCE_TTL_MS) this.usedNonces.delete(k);
+      }
+    }
+    if (this.usedNonces.has(pot.nonce)) {
+      logger.warn(`[TimeSynthesis] Duplicate nonce detected: ${pot.nonce}`);
+      return false;
+    }
+    if (this.usedNonces.size >= this.MAX_NONCE_CACHE) {
+      // Evict oldest entry
+      const oldest = this.usedNonces.keys().next().value;
+      if (oldest !== undefined) this.usedNonces.delete(oldest);
+    }
+    this.usedNonces.set(pot.nonce, now);
+
+    for (const sig of pot.sourceReadings) {
       const diff = sig.timestamp > pot.timestamp ? sig.timestamp - pot.timestamp : pot.timestamp - sig.timestamp;
       if (diff > TOLERANCE_NS) {
-        logger.warn(`[TimeSynthesis] Signature from ${sig.source} outside tolerance: ${diff}ns`);
+        logger.warn(`[TimeSynthesis] Reading from ${sig.source} outside tolerance: ${diff}ns`);
         return false;
       }
     }
@@ -297,7 +336,8 @@ export class TimeSynthesis {
     return {
       ...data,
       timestamp: BigInt(data.timestamp),
-      signatures: data.signatures.map((s: any) => ({
+      expiresAt: BigInt(data.expiresAt),
+      sourceReadings: data.sourceReadings.map((s: any) => ({
         ...s,
         timestamp: BigInt(s.timestamp)
       }))
@@ -306,11 +346,14 @@ export class TimeSynthesis {
 
   /**
    * Serializes PoT to compact binary format.
+   * Layout: header(19) + nonce(1+N) + expiresAt(8) + readings(variable)
    */
   static serializeToBinary(pot: ProofOfTime): Buffer {
-    // Header: timestamp(8), uncertainty(4), sources(1), stratum(1), confidence(4), sigCount(1) = 19 bytes
-    let size = 19;
-    for (const sig of pot.signatures) {
+    const nonceBytes = Buffer.from(pot.nonce, "utf8");
+    // Header: timestamp(8) + uncertainty(4) + sources(1) + stratum(1) + confidence(4) + readingCount(1) = 19
+    // + nonceLen(1) + nonce(N) + expiresAt(8)
+    let size = 19 + 1 + nonceBytes.length + 8;
+    for (const sig of pot.sourceReadings) {
       size += 1 + sig.source.length + 8 + 4; // nameLen(1) + name(N) + ts(8) + unc(4)
     }
 
@@ -322,9 +365,15 @@ export class TimeSynthesis {
     buf.writeUInt8(pot.sources, offset); offset += 1;
     buf.writeUInt8(pot.stratum, offset); offset += 1;
     buf.writeFloatBE(pot.confidence, offset); offset += 4;
-    buf.writeUInt8(pot.signatures.length, offset); offset += 1;
+    buf.writeUInt8(pot.sourceReadings.length, offset); offset += 1;
 
-    for (const sig of pot.signatures) {
+    // Nonce
+    buf.writeUInt8(nonceBytes.length, offset); offset += 1;
+    nonceBytes.copy(buf, offset); offset += nonceBytes.length;
+    // ExpiresAt
+    buf.writeBigUInt64BE(pot.expiresAt, offset); offset += 8;
+
+    for (const sig of pot.sourceReadings) {
       buf.writeUInt8(sig.source.length, offset); offset += 1;
       buf.write(sig.source, offset); offset += sig.source.length;
       buf.writeBigUInt64BE(sig.timestamp, offset); offset += 8;
@@ -346,15 +395,21 @@ export class TimeSynthesis {
     const confidence = buf.readFloatBE(offset); offset += 4;
     const sigCount = buf.readUInt8(offset); offset += 1;
 
-    const signatures = [];
+    // Nonce
+    const nonceLen = buf.readUInt8(offset); offset += 1;
+    const nonce = buf.toString('utf8', offset, offset + nonceLen); offset += nonceLen;
+    // ExpiresAt
+    const expiresAt = buf.readBigUInt64BE(offset); offset += 8;
+
+    const sourceReadings = [];
     for (let i = 0; i < sigCount; i++) {
       const nameLen = buf.readUInt8(offset); offset += 1;
       const source = buf.toString('utf8', offset, offset + nameLen); offset += nameLen;
       const ts = buf.readBigUInt64BE(offset); offset += 8;
       const unc = buf.readFloatBE(offset); offset += 4;
-      signatures.push({ source, timestamp: ts, uncertainty: unc });
+      sourceReadings.push({ source, timestamp: ts, uncertainty: unc });
     }
 
-    return { timestamp, uncertainty, sources, stratum, confidence, signatures };
+    return { timestamp, uncertainty, sources, stratum, confidence, sourceReadings, nonce, expiresAt };
   }
 }

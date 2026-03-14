@@ -4,6 +4,7 @@ import { TimeSynthesis } from "./time_synthesis";
 import { DynamicFeeEngine, FeeCalculation } from "./dynamic_fee";
 import { EVMConnector } from "./evm_connector";
 import { ProtocolFeeCollector } from "./protocol_fee";
+import { PotSigner } from "./pot_signer";
 import { TierIntervals, AutoMintConfig, MintResult } from "./types";
 import { logger } from "./logger";
 import { TTTConfigError, TTTSignerError, TTTTimeSynthesisError, TTTFeeError } from "./errors";
@@ -27,6 +28,7 @@ export class AutoMintEngine {
   private cachedSigner: Signer | null = null;
   private consecutiveFailures: number = 0;
   private maxConsecutiveFailures: number = 5;
+  private potSigner: PotSigner | null = null;
 
   constructor(config: AutoMintConfig) {
     this.config = config;
@@ -39,6 +41,8 @@ export class AutoMintEngine {
     if (config.signer) {
       this.cachedSigner = config.signer;
     }
+    // Initialize Ed25519 PoT signer for non-repudiation
+    this.potSigner = new PotSigner();
   }
 
   public getEvmConnector(): EVMConnector {
@@ -179,12 +183,18 @@ export class AutoMintEngine {
     }
     const potHash = ethers.keccak256(
       ethers.toUtf8Bytes(
-        JSON.stringify(pot, (key, value) => 
+        JSON.stringify(pot, (key, value) =>
           typeof value === 'bigint' ? value.toString() : value
         )
       )
     );
-    
+
+    // 1-2. Ed25519 issuer signature for non-repudiation
+    if (this.potSigner) {
+      pot.issuerSignature = this.potSigner.signPot(potHash);
+      logger.info(`[AutoMint] PoT signed by issuer ${this.potSigner.getPubKeyHex().substring(0, 16)}...`);
+    }
+
     // 2. tokenId 생성 (keccak256)
     // chainId, poolAddress, timestamp 기반 유니크 ID
     const tokenId = ethers.keccak256(

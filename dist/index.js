@@ -36,3 +36,4 @@ __exportStar(require("./signer"), exports);
 __exportStar(require("./networks"), exports);
 __exportStar(require("./reed_solomon"), exports);
 __exportStar(require("./errors"), exports);
+__exportStar(require("./pot_signer"), exports);

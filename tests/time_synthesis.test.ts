@@ -93,10 +93,10 @@ describe('TimeSynthesis SDK - Advanced Median & PoT', () => {
 
       expect(pot.timestamp).toBe(1050n); // Median
       expect(pot.sources).toBe(3);
-      expect(pot.signatures.length).toBe(3);
-      expect(pot.signatures[0].source).toBe('nist');
-      expect(pot.signatures[1].source).toBe('kriss');
-      expect(pot.signatures[2].source).toBe('google');
+      expect(pot.sourceReadings.length).toBe(3);
+      expect(pot.sourceReadings[0].source).toBe('nist');
+      expect(pot.sourceReadings[1].source).toBe('kriss');
+      expect(pot.sourceReadings[2].source).toBe('google');
     });
   });
 

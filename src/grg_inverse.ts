@@ -1,24 +1,26 @@
-import { createHash } from "crypto";
+import { createHash, createHmac } from "crypto";
 import { golayDecode } from "./golay";
+import { GrgForward } from "./grg_forward";
 import { logger } from "./logger";
 import { ReedSolomon } from "./reed_solomon";
 
 export class GrgInverse {
   
   // 1. Golay Decoding & Integrity Check 🔱
-  static golayDecodeWrapper(data: Uint8Array): Uint8Array {
+  static golayDecodeWrapper(data: Uint8Array, hmacKey?: Buffer): Uint8Array {
     if (data.length < 8) throw new Error("GRG shard too short for checksum");
 
     // Split data and checksum (last 8 bytes)
     const encoded = data.subarray(0, data.length - 8);
     const checksum = data.subarray(data.length - 8);
 
-    // Verify SHA-256 Checksum (B1-5: 4 -> 8 bytes)
-    const hash = createHash("sha256").update(Buffer.from(encoded)).digest();
-    const expected = hash.subarray(0, 8);
+    // Verify HMAC-SHA256 Checksum (keyed hash, B1-5: 8 bytes truncated)
+    const key = hmacKey || GrgForward.deriveHmacKey();
+    const mac = createHmac("sha256", key).update(Buffer.from(encoded)).digest();
+    const expected = mac.subarray(0, 8);
 
     if (!Buffer.from(checksum).equals(Buffer.from(expected))) {
-      throw new Error("GRG tamper detected: SHA-256 checksum mismatch");
+      throw new Error("GRG tamper detected: HMAC-SHA256 checksum mismatch");
     }
 
     // Proceed to Golay decode
@@ -66,11 +68,12 @@ export class GrgInverse {
     return new Uint8Array(result);
   }
 
-  static verify(data: Uint8Array, originalShards: Uint8Array[]): boolean {
+  static verify(data: Uint8Array, originalShards: Uint8Array[], chainId?: number, poolAddress?: string): boolean {
     try {
+      const hmacKey = GrgForward.deriveHmacKey(chainId, poolAddress);
       const decodedShards: (Uint8Array | null)[] = originalShards.map(s => {
         try {
-          return this.golayDecodeWrapper(s);
+          return this.golayDecodeWrapper(s, hmacKey);
         } catch {
           return null;
         }

@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GrgForward = void 0;
 const crypto_1 = require("crypto");
+const ethers_1 = require("ethers");
 const golay_1 = require("./golay");
 const reed_solomon_1 = require("./reed_solomon");
 class GrgForward {
@@ -28,18 +29,31 @@ class GrgForward {
     static redstuffEncode(data, shards = 4, parity = 2) {
         return reed_solomon_1.ReedSolomon.encode(data, shards, parity);
     }
+    /**
+     * Derives an HMAC key from GRG payload context (chainId + poolAddress).
+     * Falls back to a static domain-separation key when no context is provided.
+     */
+    static deriveHmacKey(chainId, poolAddress) {
+        if (chainId !== undefined && poolAddress) {
+            const packed = (0, ethers_1.keccak256)(ethers_1.AbiCoder.defaultAbiCoder().encode(["uint256", "address"], [chainId, poolAddress]));
+            return Buffer.from(packed.slice(2), "hex"); // 32 bytes
+        }
+        // Default domain-separation key when no context is available
+        return Buffer.from("grg-integrity-hmac-default-key-v1");
+    }
     // 3. Golay(24,12) Error Correction Encoding
-    static golayEncodeWrapper(data) {
+    static golayEncodeWrapper(data, hmacKey) {
         const encoded = (0, golay_1.golayEncode)(data);
-        // 🔱 Integrity: Append 8-byte SHA-256 hash of the encoded shard (B1-5: 4 -> 8 bytes)
-        const hash = (0, crypto_1.createHash)("sha256").update(Buffer.from(encoded)).digest();
-        const checksum = hash.subarray(0, 8);
+        // 🔱 Integrity: Append 8-byte HMAC-SHA256 of the encoded shard (keyed hash)
+        const key = hmacKey || this.deriveHmacKey();
+        const mac = (0, crypto_1.createHmac)("sha256", key).update(Buffer.from(encoded)).digest();
+        const checksum = mac.subarray(0, 8);
         const final = new Uint8Array(encoded.length + 8);
         final.set(encoded);
         final.set(checksum, encoded.length);
         return final;
     }
-    static encode(data) {
+    static encode(data, chainId, poolAddress) {
         // R3-P0-3: Reject empty input — roundtrip breaks ([] → [0])
         if (data.length === 0) {
             throw new Error("[GRG] Cannot encode empty input — roundtrip identity violation");
@@ -53,7 +67,8 @@ class GrgForward {
         withLen[3] = data.length & 0xFF;
         withLen.set(compressed, 4);
         const shards = this.redstuffEncode(withLen);
-        return shards.map(s => this.golayEncodeWrapper(s));
+        const hmacKey = this.deriveHmacKey(chainId, poolAddress);
+        return shards.map(s => this.golayEncodeWrapper(s, hmacKey));
     }
 }
 exports.GrgForward = GrgForward;
