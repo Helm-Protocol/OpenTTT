@@ -112,6 +112,15 @@ export class NTPSource implements TimeSource {
  * HTTPS-based time source (TLS-protected, immune to MITM).
  * Uses HTTP Date header from trusted TLS endpoints.
  * Preferred over plaintext NTP (UDP) which is vulnerable to spoofing.
+ *
+ * SECURITY MODEL — HTTPS Time Sources:
+ * - All HTTPS requests use Node.js `https.request()` with default TLS settings.
+ * - Default TLS behavior: certificate verification is ON (rejectUnauthorized=true).
+ * - No certificate bypass (rejectUnauthorized: false) is used anywhere in this module.
+ * - The TLS handshake itself provides authentication of the time server identity,
+ *   preventing MITM attacks that plaintext NTP (UDP port 123) is vulnerable to.
+ * - Base uncertainty for HTTPS Date header is 500ms (HTTP Date has 1-second resolution).
+ * - For ±10ns precision, HTTPS is a cross-check only; KTSat is the primary source.
  */
 export class HTTPSTimeSource implements TimeSource {
   constructor(public name: string, private url: string) {}
