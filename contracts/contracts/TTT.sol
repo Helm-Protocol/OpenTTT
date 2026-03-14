@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
@@ -13,12 +14,17 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
  * Inherits ERC-1155, ERC1155Supply, Ownable, ReentrancyGuard, and Pausable from OpenZeppelin.
  * Compliant with Task H requirements: onlyOwner access and ReentrancyGuard.
  */
-contract TTT is ERC1155, ERC1155Supply, Ownable, ReentrancyGuard, Pausable {
+contract TTT is ERC1155, ERC1155Supply, Ownable, AccessControl, ReentrancyGuard, Pausable {
+
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     
     event TTTMinted(address indexed to, uint256 indexed tokenId, uint256 amount);
     event TTTBurned(address indexed from, uint256 indexed tokenId, uint256 amount, uint256 tier);
 
-    constructor() ERC1155("https://api.helm.network/ttt/{id}.json") Ownable(msg.sender) {}
+    constructor() ERC1155("https://api.helm.network/ttt/{id}.json") Ownable(msg.sender) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(MINTER_ROLE, msg.sender);
+    }
 
     /**
      * @dev Mint TTT tokens.
@@ -26,7 +32,7 @@ contract TTT is ERC1155, ERC1155Supply, Ownable, ReentrancyGuard, Pausable {
      * @param amount Amount to mint.
      * @param grgHash Hash used as token ID.
      */
-    function mint(address to, uint256 amount, bytes32 grgHash) external onlyOwner whenNotPaused nonReentrant {
+    function mint(address to, uint256 amount, bytes32 grgHash) external onlyRole(MINTER_ROLE) whenNotPaused nonReentrant {
         require(amount > 0, "Amount must be greater than zero");
         uint256 tokenId = uint256(grgHash);
         _mint(to, tokenId, amount, "");
@@ -73,5 +79,10 @@ contract TTT is ERC1155, ERC1155Supply, Ownable, ReentrancyGuard, Pausable {
         override(ERC1155, ERC1155Supply)
     {
         super._update(from, to, ids, values);
+    }
+
+    // Required override for ERC1155 + AccessControl
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155, AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 }

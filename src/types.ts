@@ -114,6 +114,7 @@ export interface AutoMintConfig {
   protocolFeeRecipient: string; // Protocol fee recipient address
   fallbackPriceUsd?: bigint;    // Optional fallback price (scale 1e6)
   maxLatencyHistory?: number;   // Ring buffer size for mint latencies (default 100)
+  potSignerKeyPath?: string;    // Optional file path for persistent Ed25519 PoT signer key
 }
 
 export interface MintResult {
