@@ -5,24 +5,36 @@ import { ReedSolomon } from "./reed_solomon";
 
 export class GrgForward {
   
-  // 1. Golomb-Rice Compression
+  /**
+   * Golomb-Rice encoding.
+   *
+   * Golomb-Rice is optimal for small-value biased distributions (e.g., timestamp deltas).
+   * For uniformly distributed data (random bytes), expect ~50% expansion.
+   * The primary purpose in the GRG pipeline is structured encoding for error correction,
+   * not compression.
+   *
+   * @param data  Raw bytes to encode.
+   * @param m     Golomb divisor (must be a power of 2, default 16).
+   */
   static golombEncode(data: Uint8Array, m: number = 16): Uint8Array {
     if (m < 2) throw new Error("[GRG] Golomb parameter m must be >= 2");
     const k = Math.log2(m);
     if (!Number.isInteger(k)) throw new Error("M must be power of 2");
     
-    let bits = "";
+    const bits: number[] = [];
     for (const byte of data) {
       const q = Math.floor(byte / m);
       const r = byte % m;
-      bits += "1".repeat(q) + "0" + r.toString(2).padStart(k, "0");
+      for (let i = 0; i < q; i++) bits.push(1);
+      bits.push(0);
+      for (let i = k - 1; i >= 0; i--) bits.push((r >> i) & 1);
     }
-    
-    const bytes = [];
-    for (let i = 0; i < bits.length; i += 8) {
-      bytes.push(parseInt(bits.substring(i, i + 8).padEnd(8, "0"), 2));
+
+    const out = new Uint8Array(Math.ceil(bits.length / 8));
+    for (let i = 0; i < bits.length; i++) {
+      if (bits[i]) out[i >> 3] |= (0x80 >> (i & 7));
     }
-    return new Uint8Array(bytes);
+    return out;
   }
 
   // 2. RedStuff Erasure Coding (Reed-Solomon GF(2^8))

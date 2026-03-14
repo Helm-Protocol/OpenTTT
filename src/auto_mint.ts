@@ -5,13 +5,20 @@ import { DynamicFeeEngine, FeeCalculation } from "./dynamic_fee";
 import { EVMConnector } from "./evm_connector";
 import { ProtocolFeeCollector } from "./protocol_fee";
 import { PotSigner } from "./pot_signer";
+import { GrgForward } from "./grg_forward";
 import { TierIntervals, AutoMintConfig, MintResult } from "./types";
 import { logger } from "./logger";
 import { TTTConfigError, TTTSignerError, TTTTimeSynthesisError, TTTFeeError } from "./errors";
 
+/** Maximum retry attempts for RPC-dependent operations within a single tick */
+const MINT_TICK_MAX_RETRIES = 3;
+
+/** Backoff durations in ms for each retry attempt (1s, 2s, 4s) */
+const MINT_TICK_BACKOFF_MS = [1000, 2000, 4000];
+
 /**
- * AutoMintEngine - TTT 자동 민팅 엔진
- * 시간 합성, 동적 수수료 계산, EVM 민팅을 하나의 루프로 결합
+ * AutoMintEngine - Automatic TTT minting engine.
+ * Combines time synthesis, dynamic fee calculation, and EVM minting into a single loop.
  */
 export class AutoMintEngine {
   private config: AutoMintConfig;
@@ -49,6 +56,10 @@ export class AutoMintEngine {
     return this.evmConnector;
   }
 
+  public getTimeSynthesis(): TimeSynthesis {
+    return this.timeSynthesis;
+  }
+
   public setOnMint(callback: (result: MintResult) => void): void {
     this.onMintCallback = callback;
   }
@@ -62,7 +73,7 @@ export class AutoMintEngine {
   }
 
   /**
-   * 엔진 초기화 (RPC 연결 및 컨트랙트 설정)
+   * Initialize the engine (RPC connection and contract setup).
    */
   async initialize(): Promise<void> {
     try {
@@ -79,7 +90,9 @@ export class AutoMintEngine {
         "function burn(uint256 amount, bytes32 grgHash, uint256 tier) external",
         "function balanceOf(address account, uint256 id) external view returns (uint256)",
         "event TTTMinted(address indexed to, uint256 indexed tokenId, uint256 amount)",
-        "event TTTBurned(address indexed from, uint256 indexed tokenId, uint256 amount, uint256 tier)"
+        "event TTTBurned(address indexed from, uint256 indexed tokenId, uint256 amount, uint256 tier)",
+        // CT Log equivalent: every PoT is publicly auditable on-chain
+        EVMConnector.POT_ANCHORED_EVENT_ABI
       ];
       this.evmConnector.attachContract(this.config.contractAddress, tttAbi);
 
@@ -103,7 +116,7 @@ export class AutoMintEngine {
   }
 
   /**
-   * 자동 민팅 루프 시작
+   * Start the automatic minting loop.
    */
   start(): void {
     if (this.isRunning) return;
@@ -148,7 +161,7 @@ export class AutoMintEngine {
   }
 
   /**
-   * 자동 민팅 루프 정지
+   * Stop the automatic minting loop.
    */
   stop(): void {
     if (this.timer) {
@@ -160,11 +173,28 @@ export class AutoMintEngine {
   }
 
   /**
-   * 단일 민트 틱 실행
-   * 시간합성 → tokenId 생성 → EVM mint 호출 → 수수료 계산/차감
+   * Resume the minting loop after a circuit breaker trip.
+   * Resets the consecutive failure counter and restarts the loop.
+   */
+  resume(): void {
+    this.consecutiveFailures = 0;
+    logger.info(`[AutoMint] Consecutive failures reset, resuming...`);
+    this.start();
+  }
+
+  /**
+   * Sleep helper for retry backoff.
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Execute a single mint tick.
+   * Time synthesis -> tokenId generation -> EVM mint call -> fee calculation/deduction.
    */
   async mintTick(): Promise<void> {
-    // 1. 시간 합성 (Time Synthesis)
+    // 1. Time Synthesis
     const synthesized = await this.timeSynthesis.synthesize();
     if (!synthesized) {
       logger.warn(`[AutoMint] Time synthesis returned null/undefined, skipping tick`);
@@ -195,8 +225,8 @@ export class AutoMintEngine {
       logger.info(`[AutoMint] PoT signed by issuer ${this.potSigner.getPubKeyHex().substring(0, 16)}...`);
     }
 
-    // 2. tokenId 생성 (keccak256)
-    // chainId, poolAddress, timestamp 기반 유니크 ID
+    // 2. Generate tokenId (keccak256)
+    // Unique ID based on chainId, poolAddress, timestamp
     const tokenId = ethers.keccak256(
       ethers.AbiCoder.defaultAbiCoder().encode(
         ["uint256", "address", "uint64"],
@@ -204,14 +234,29 @@ export class AutoMintEngine {
       )
     );
 
-    // 3. 수수료 계산
+    // 3. Fee calculation
     const feeCalculation = await this.feeEngine.calculateMintFee(this.config.tier);
     
-    // 4. EVM mint 호출
-    // grgHash는 현재 tokenId를 기반으로 생성 (실제 구현에선 더 복잡한 GRG 페이로드 사용 가능)
-    const grgHash = tokenId; 
-    
-    // 수취인 주소 (기본적으로 signer 주소)
+    // 4. EVM mint call — run full GRG pipeline (Golomb → Reed-Solomon → Golay+HMAC)
+    const grgPayload = ethers.AbiCoder.defaultAbiCoder().encode(
+      ["bytes32", "bytes32", "uint64", "uint8"],
+      [tokenId, potHash, synthesized.timestamp, pot.sources]
+    );
+    const grgStart = Date.now();
+    const grgShards = GrgForward.encode(
+      ethers.getBytes(grgPayload),
+      this.config.chainId,
+      this.config.poolAddress
+    );
+    const grgElapsed = Date.now() - grgStart;
+    logger.info(`[AutoMint] GRG pipeline completed in ${grgElapsed}ms`);
+    if (grgElapsed > 50) {
+      logger.warn(`[AutoMint] GRG pipeline took ${grgElapsed}ms (>50ms threshold). Consider offloading to a Worker Thread for T3_micro tiers.`);
+    }
+    // On-chain hash = keccak256 of concatenated GRG-encoded shards
+    const grgHash = ethers.keccak256(ethers.concat(grgShards));
+
+    // Recipient address (defaults to signer address)
     if (!this.cachedSigner) {
       throw new TTTSignerError("[AutoMint] Signer not initialized", "cachedSigner is null", "Initialize the engine before calling mintTick().");
     }
@@ -219,14 +264,33 @@ export class AutoMintEngine {
 
     logger.info(`[AutoMint] Executing mint: tokenId=${tokenId.substring(0, 10)}... amount=${feeCalculation.tttAmount}`);
 
-    const receipt = await this.evmConnector.mintTTT(
-      recipient,
-      feeCalculation.tttAmount,
-      grgHash,
-      potHash
-    );
+    // Retry loop for RPC-dependent mint operation (max 3 attempts, backoff 1s/2s/4s)
+    let receipt: any;
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt < MINT_TICK_MAX_RETRIES; attempt++) {
+      try {
+        receipt = await this.evmConnector.mintTTT(
+          recipient,
+          feeCalculation.tttAmount,
+          grgHash,
+          potHash
+        );
+        lastError = null;
+        break;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (attempt < MINT_TICK_MAX_RETRIES - 1) {
+          const backoff = MINT_TICK_BACKOFF_MS[attempt];
+          logger.warn(`[AutoMint] Mint attempt ${attempt + 1}/${MINT_TICK_MAX_RETRIES} failed, retrying in ${backoff}ms: ${lastError.message}`);
+          await this.sleep(backoff);
+        }
+      }
+    }
+    if (lastError || !receipt) {
+      throw lastError || new Error("[AutoMint] Mint failed after all retries");
+    }
 
-    // 5. 수수료 차감/기록 (실제 컨트랙트에서 처리되거나 SDK 레벨에서 추적)
+    // 5. Fee deduction/recording (handled by contract or tracked at SDK level)
     // W2-3: Actual ProtocolFeeCollector call
     let actualFeePaid = feeCalculation.protocolFeeUsd;
     if (this.feeCollector && this.config.feeCollectorAddress) {
@@ -253,6 +317,9 @@ export class AutoMintEngine {
         actualFeePaid = 0n;
       }
     }
+
+    // CT Log equivalent: log PoT anchor info for subgraph indexers
+    logger.info(`[AutoMint] PoTAnchored: timestamp=${synthesized.timestamp}, grgHash=${grgHash}, stratum=${synthesized.stratum}, potHash=${potHash}`);
 
     logger.info(`[AutoMint] Mint success: tx=${receipt.hash}, feePaid=${actualFeePaid} (USDC eq)`);
 

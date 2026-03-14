@@ -18,9 +18,20 @@ export const TierIntervals: Record<TierType, number> = {
  */
 export interface TTTClientConfig {
   /**
-   * Required: Signer configuration (PrivateKey, Turnkey, Privy, KMS)
+   * Signer configuration (PrivateKey, Turnkey, Privy, KMS).
+   * Required unless `privateKey` shorthand is provided.
    */
-  signer: SignerConfig;
+  signer?: SignerConfig;
+
+  /**
+   * Shorthand: pass a raw private key string directly.
+   * If provided (and `signer` is not), auto-converts to { type: 'privateKey', key: ... }.
+   * Accepts with or without '0x' prefix.
+   *
+   * @example
+   * TTTClient.forBase({ privateKey: process.env.OPERATOR_PK! })
+   */
+  privateKey?: string;
 
   /**
    * Optional: Network selection (preset "base", "sepolia" or custom NetworkConfig)
@@ -93,7 +104,7 @@ export interface AutoMintConfig {
   tier: TierType;
   timeSources: string[];
   protocolFeeRate: number;      // 0.02 ~ 0.10 (2%~10%)
-  protocolFeeRecipient: string; // Helm 수수료 수취 주소
+  protocolFeeRecipient: string; // Protocol fee recipient address
   fallbackPriceUsd?: bigint;    // Optional fallback price (scale 1e6)
 }
 
@@ -161,10 +172,35 @@ export interface ProofOfTime {
   sources: number;
   stratum: number;
   confidence: number;
-  sourceReadings: { source: string; timestamp: bigint; uncertainty: number }[];
+  sourceReadings: { source: string; timestamp: bigint; uncertainty: number; stratum?: number }[];
   nonce: string;        // crypto random hex — replay protection
   expiresAt: bigint;    // unix timestamp (ms) — PoT validity window
   issuerSignature?: PotSignature;  // Ed25519 signature from the issuing node (non-repudiation)
+}
+
+/**
+ * Health status returned by TTTClient.getHealth().
+ * Provides liveness, readiness, and operational metrics.
+ */
+export interface HealthStatus {
+  healthy: boolean;
+  checks: {
+    initialized: boolean;
+    rpcConnected: boolean;
+    signerAvailable: boolean;
+    balanceSufficient: boolean;
+    ntpSourcesOk: boolean;
+  };
+  metrics: {
+    mintCount: number;
+    mintFailures: number;
+    successRate: number;
+    totalFeesPaid: string;
+    avgMintLatencyMs: number;
+    lastMintAt: string | null;
+    uptimeMs: number;
+  };
+  alerts: string[];
 }
 
 export type { PotSignature } from "./pot_signer";

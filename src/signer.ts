@@ -1,7 +1,4 @@
 import { Signer, Wallet, isHexString, AbstractSigner, TransactionRequest, resolveProperties, Transaction, Signature, getAddress, computeAddress, hashMessage, keccak256, TypedDataDomain, TypedDataField, TypedDataEncoder, recoverAddress } from "ethers";
-import { TurnkeySigner } from "@turnkey/ethers";
-import { ApiKeyStamper } from "@turnkey/api-key-stamper";
-import { PrivyClient } from "@privy-io/server-auth";
 import { TTTSignerError } from "./errors";
 
 /**
@@ -47,7 +44,7 @@ export class PrivateKeySigner extends TTTAbstractSigner {
  * TEE-based institution-grade signer (Turnkey)
  */
 export class TurnkeySignerWrapper extends TTTAbstractSigner {
-  constructor(signer: TurnkeySigner) {
+  constructor(signer: Signer) {
     super(signer);
   }
 }
@@ -68,6 +65,61 @@ export class KMSSigner extends TTTAbstractSigner {
   constructor(signer: Signer) {
     super(signer);
   }
+}
+
+/**
+ * Extract the uncompressed secp256k1 public key from a DER-encoded
+ * SubjectPublicKeyInfo structure using proper ASN.1 parsing.
+ *
+ * DER layout: SEQUENCE { SEQUENCE { OID, PARAMS }, BITSTRING { 0x00, key } }
+ * We locate the BITSTRING tag (0x03), read its length, skip the
+ * "unused bits" byte, and return the remaining 65 bytes (04 || X || Y).
+ */
+function extractPublicKeyFromDER(der: Buffer): Buffer {
+  let pos = 0;
+
+  function readTag(): number {
+    if (pos >= der.length) throw new Error("DER parse error: unexpected end of data while reading tag");
+    return der[pos++];
+  }
+
+  function readLength(): number {
+    if (pos >= der.length) throw new Error("DER parse error: unexpected end of data while reading length");
+    const first = der[pos++];
+    if (first < 0x80) return first;
+    const numBytes = first & 0x7f;
+    if (numBytes === 0 || numBytes > 4) throw new Error(`DER parse error: unsupported length encoding (${numBytes} bytes)`);
+    let length = 0;
+    for (let i = 0; i < numBytes; i++) {
+      if (pos >= der.length) throw new Error("DER parse error: unexpected end of data in multi-byte length");
+      length = (length << 8) | der[pos++];
+    }
+    return length;
+  }
+
+  // Outer SEQUENCE
+  const outerTag = readTag();
+  if (outerTag !== 0x30) throw new Error(`DER parse error: expected SEQUENCE (0x30), got 0x${outerTag.toString(16)}`);
+  readLength(); // outer sequence length
+
+  // Inner SEQUENCE (algorithm identifier) -- skip it entirely
+  const innerTag = readTag();
+  if (innerTag !== 0x30) throw new Error(`DER parse error: expected inner SEQUENCE (0x30), got 0x${innerTag.toString(16)}`);
+  const innerLen = readLength();
+  pos += innerLen; // skip OID + params
+
+  // BITSTRING containing the public key
+  const bsTag = readTag();
+  if (bsTag !== 0x03) throw new Error(`DER parse error: expected BITSTRING (0x03), got 0x${bsTag.toString(16)}`);
+  const bsLen = readLength();
+  const unusedBits = der[pos++];
+  if (unusedBits !== 0x00) throw new Error(`DER parse error: expected 0 unused bits in BITSTRING, got ${unusedBits}`);
+
+  const keyBytes = der.slice(pos, pos + bsLen - 1);
+  if (keyBytes.length !== 65 || keyBytes[0] !== 0x04) {
+    throw new Error(`DER parse error: expected 65-byte uncompressed secp256k1 key (04||X||Y), got ${keyBytes.length} bytes`);
+  }
+  return keyBytes;
 }
 
 /**
@@ -119,7 +171,7 @@ class AWSKMSEthersSigner extends AbstractSigner {
     const response = await this.client.send(command);
     
     const publicKeyDer = response.PublicKey;
-    const pubKey = Buffer.from(publicKeyDer).slice(-65); 
+    const pubKey = extractPublicKeyFromDER(Buffer.from(publicKeyDer));
     this.address = computeAddress("0x" + pubKey.toString('hex'));
     return this.address;
   }
@@ -196,7 +248,7 @@ class GCPKMSEthersSigner extends AbstractSigner {
     const pem = publicKey.pem;
     const base64 = pem.replace(/-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\n|\r/g, '');
     const der = Buffer.from(base64, 'base64');
-    const pubKey = der.slice(-65);
+    const pubKey = extractPublicKeyFromDER(der);
     this.address = computeAddress("0x" + pubKey.toString('hex'));
     return this.address;
   }
@@ -270,6 +322,10 @@ export async function createSigner(config: SignerConfig): Promise<TTTAbstractSig
     }
 
     case 'turnkey': {
+      // Dynamic import to avoid mandatory dependency on @turnkey packages
+      const { TurnkeySigner } = await import("@turnkey/ethers");
+      const { ApiKeyStamper } = await import("@turnkey/api-key-stamper");
+
       const stamper = new ApiKeyStamper({
         apiPublicKey: config.apiPublicKey,
         apiPrivateKey: config.apiPrivateKey,
@@ -286,7 +342,7 @@ export async function createSigner(config: SignerConfig): Promise<TTTAbstractSig
     }
 
     case 'privy': {
-      throw new TTTSignerError("[Signer] Privy wallet signer extraction not fully implemented", "Privy requires proper session context and walletId", "Refer to Privy server-auth documentation for server-side signing.");
+      throw new TTTSignerError("[Signer] Privy signer is not yet implemented. Use 'privateKey' or 'turnkey' instead.", "Privy embedded wallet support is planned but not available in this release.", "Use { type: 'privateKey', key: '0x...' } or { type: 'turnkey', ... } as your signer config.");
     }
 
     case 'kms': {

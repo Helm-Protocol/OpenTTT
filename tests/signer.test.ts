@@ -39,7 +39,7 @@ describe("Signer", () => {
 
   it("should throw on Privy (not implemented)", async () => {
     await expect(createSigner({ type: "privy", appId: "x", appSecret: "y" }))
-      .rejects.toThrow("not fully implemented");
+      .rejects.toThrow("not yet implemented");
   });
 
   it("should throw on GCP KMS missing fields", async () => {

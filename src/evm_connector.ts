@@ -63,6 +63,14 @@ export class EVMConnector {
   }
 
   /**
+   * CT Log Equivalent: PoTAnchored event ABI fragment.
+   * Every Proof-of-Time anchor is publicly auditable on-chain,
+   * analogous to Certificate Transparency logs in TLS.
+   */
+  static readonly POT_ANCHORED_EVENT_ABI =
+    "event PoTAnchored(uint64 indexed timestamp, bytes32 grgHash, uint8 stratum, bytes32 potHash)";
+
+  /**
    * Attach the TTT Token contract.
    */
   attachContract(address: string, abi: any[]): void {
@@ -119,7 +127,11 @@ export class EVMConnector {
       if (potHash) {
         logger.info(`[EVM] Recording PoT fingerprint: ${potHash}`);
       }
-      const tx = await this.tttContract.mint(to, amount, grgHash);
+      // Gas estimation with 20% buffer and timeout (matching burnTTT pattern)
+      const gasLimit = await this.withTimeout(this.tttContract.mint.estimateGas(to, amount, grgHash));
+      const tx = await this.tttContract.mint(to, amount, grgHash, {
+        gasLimit: (gasLimit * 120n) / 100n
+      });
       const receipt = await tx.wait();
       if (!receipt) throw new TTTNetworkError(`[EVM] Mint TX dropped`, `Transaction was dropped from mempool`, `Check operator account for nonce collisions.`);
       return receipt;
