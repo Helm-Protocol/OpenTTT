@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+
+/**
+ * @title TTT (Tikitaka Tick Token)
+ * @dev Tikitaka Tick Token implementation for managing micropayment ticks.
+ * Inherits ERC-1155, ERC1155Supply, Ownable, ReentrancyGuard, and Pausable from OpenZeppelin.
+ * Compliant with Task H requirements: onlyOwner access and ReentrancyGuard.
+ */
+contract TTT is ERC1155, ERC1155Supply, Ownable, ReentrancyGuard, Pausable {
+    
+    event TTTMinted(address indexed to, uint256 indexed tokenId, uint256 amount);
+    event TTTBurned(address indexed from, uint256 indexed tokenId, uint256 amount, uint256 tier);
+
+    constructor() ERC1155("https://api.helm.network/ttt/{id}.json") Ownable(msg.sender) {}
+
+    /**
+     * @dev Mint TTT tokens.
+     * @param to Recipient address.
+     * @param amount Amount to mint.
+     * @param grgHash Hash used as token ID.
+     */
+    function mint(address to, uint256 amount, bytes32 grgHash) external onlyOwner whenNotPaused nonReentrant {
+        require(amount > 0, "Amount must be greater than zero");
+        uint256 tokenId = uint256(grgHash);
+        _mint(to, tokenId, amount, "");
+        emit TTTMinted(to, tokenId, amount);
+    }
+
+    /**
+     * @dev Burn TTT tokens to signal intention.
+     * @param amount Amount to burn.
+     * @param grgHash Hash used as token ID.
+     * @param tier Tier level of the TTT (used for signature compatibility).
+     */
+    function burn(uint256 amount, bytes32 grgHash, uint256 tier) external whenNotPaused nonReentrant {
+        require(amount > 0, "Amount must be greater than zero");
+        uint256 tokenId = uint256(grgHash);
+        _burn(msg.sender, tokenId, amount);
+        emit TTTBurned(msg.sender, tokenId, amount, tier);
+    }
+
+    /**
+     * @dev Standardizing Token ID management for different pools and timestamps.
+     * @param chainId The chain ID.
+     * @param pool The address of the pool.
+     * @param timestamp The timestamp.
+     * @param slotIndex The slot index.
+     * @return The generated tokenId.
+     */
+    function getTokenId(uint256 chainId, address pool, uint256 timestamp, uint256 slotIndex) public pure returns (uint256) {
+        return uint256(keccak256(abi.encode(chainId, pool, timestamp, slotIndex)));
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    // Required overrides for ERC1155 and ERC1155Supply
+    function _update(address from, address to, uint256[] memory ids, uint256[] memory values)
+        internal
+        virtual
+        override(ERC1155, ERC1155Supply)
+    {
+        super._update(from, to, ids, values);
+    }
+}
