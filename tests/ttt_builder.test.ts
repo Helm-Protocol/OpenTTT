@@ -43,7 +43,7 @@ describe("TTTBuilder", () => {
     const txs = ["0x1", "0x2", "0x3"];
     const timestamp = Date.now(); // Milliseconds
     
-    const grgPayload = GrgForward.encode(testData);
+    const grgPayload = GrgForward.encode(testData, 1, poolAddress);
     
     const block: Block = {
       timestamp: timestamp,
@@ -59,9 +59,9 @@ describe("TTTBuilder", () => {
     
     // Transition to TURBO (20 blocks)
     for (let i = 0; i < 19; i++) {
-      await builder.verifyBlock(block, tttRecord);
+      await builder.verifyBlock(block, tttRecord, 1, poolAddress);
     }
-    const mode = await builder.verifyBlock(block, tttRecord);
+    const mode = await builder.verifyBlock(block, tttRecord, 1, poolAddress);
 
     expect(mode).toBe(AdaptiveMode.TURBO);
     expect(builder.getMode()).toBe(AdaptiveMode.TURBO);
@@ -74,7 +74,7 @@ describe("TTTBuilder", () => {
     const txs = ["0x1", "0x2", "0x3"];
     const timestamp = Date.now();
     
-    const grgPayload = GrgForward.encode(testData);
+    const grgPayload = GrgForward.encode(testData, 1, poolAddress);
     
     const block: Block = {
       timestamp: timestamp,
@@ -88,7 +88,7 @@ describe("TTTBuilder", () => {
       grgPayload: grgPayload,
     };
     
-    const mode = await builder.verifyBlock(block, tttRecord);
+    const mode = await builder.verifyBlock(block, tttRecord, 1, poolAddress);
     expect(mode).toBe(AdaptiveMode.FULL);
     expect(builder.getMode()).toBe(AdaptiveMode.FULL);
   });
@@ -99,7 +99,7 @@ describe("TTTBuilder", () => {
     const mismatchedTxs = ["0x1", "0x3", "0x2"]; // Swapped
     const timestamp = Date.now();
     
-    const grgPayload = GrgForward.encode(testData);
+    const grgPayload = GrgForward.encode(testData, 1, poolAddress);
     
     const block: Block = {
       timestamp: timestamp,
@@ -113,7 +113,7 @@ describe("TTTBuilder", () => {
       grgPayload: grgPayload,
     };
     
-    const mode = await builder.verifyBlock(block, tttRecord);
+    const mode = await builder.verifyBlock(block, tttRecord, 1, poolAddress);
     expect(mode).toBe(AdaptiveMode.FULL);
     expect(builder.getMode()).toBe(AdaptiveMode.FULL);
   });
@@ -124,7 +124,7 @@ describe("TTTBuilder", () => {
     const timestamp = Date.now();
     const futureTimestamp = timestamp + 1000; // Beyond 100ms tolerance
     
-    const grgPayload = GrgForward.encode(testData);
+    const grgPayload = GrgForward.encode(testData, 1, poolAddress);
     
     const block: Block = {
       timestamp: timestamp,
@@ -138,7 +138,7 @@ describe("TTTBuilder", () => {
       grgPayload: grgPayload,
     };
     
-    const mode = await builder.verifyBlock(block, tttRecord);
+    const mode = await builder.verifyBlock(block, tttRecord, 1, poolAddress);
     expect(mode).toBe(AdaptiveMode.FULL);
     expect(builder.getMode()).toBe(AdaptiveMode.FULL);
   });

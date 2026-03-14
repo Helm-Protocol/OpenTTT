@@ -85,10 +85,10 @@ export class TTTBuilder {
    * Verify block data using the AdaptiveSwitch pipeline.
    * Updates the current mode based on verification results.
    */
-  async verifyBlock(blockData: Block, tttRecord: TTTRecord): Promise<AdaptiveMode> {
+  async verifyBlock(blockData: Block, tttRecord: TTTRecord, chainId: number = 1, poolAddress: string = "0x0000000000000000000000000000000000000000"): Promise<AdaptiveMode> {
     logger.info(`[TTTBuilder] Verifying block at timestamp: ${blockData.timestamp}`);
-    
-    const result = this.adaptiveSwitch.verifyBlock(blockData, tttRecord);
+
+    const result = this.adaptiveSwitch.verifyBlock(blockData, tttRecord, chainId, poolAddress);
     this.mode = result;
     
     logger.info(`[TTTBuilder] Verification complete. Mode: ${this.mode}`);

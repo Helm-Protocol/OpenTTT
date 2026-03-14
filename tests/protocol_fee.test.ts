@@ -63,7 +63,7 @@ describe("ProtocolFeeCollector", () => {
     signer: ethers.Wallet | ethers.HDNodeWallet
   ) {
     const domain = {
-      name: "Helm Protocol",
+      name: "OpenTTT_ProtocolFee",
       version: "1",
       chainId: chainId,
       verifyingContract: verifyingContract

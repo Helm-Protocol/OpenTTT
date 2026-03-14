@@ -10,13 +10,13 @@ export class GrgPipeline {
    * Runs the full forward pipeline:
    * Golomb-Rice -> RedStuff (Erasure) -> Golay(24,12)
    */
-  static processForward(data: Uint8Array): Uint8Array[] {
+  static processForward(data: Uint8Array, chainId: number, poolAddress: string): Uint8Array[] {
     if (data.length > this.MAX_INPUT_SIZE) {
       throw new Error(`[GRG] Input size ${data.length} exceeds MAX_INPUT_SIZE ${this.MAX_INPUT_SIZE}`);
     }
     logger.info("Starting GRG forward pipeline...");
     try {
-      const shards = GrgForward.encode(data);
+      const shards = GrgForward.encode(data, chainId, poolAddress);
       logger.info(`GRG forward pipeline complete. Generated ${shards.length} shards.`);
       return shards;
     } catch (error) {
@@ -29,12 +29,13 @@ export class GrgPipeline {
    * Runs the full inverse pipeline:
    * Golay(24,12) -> RedStuff (Reconstruction) -> Golomb-Rice Decompression
    */
-  static processInverse(shards: Uint8Array[], originalLength: number): Uint8Array {
+  static processInverse(shards: Uint8Array[], originalLength: number, chainId: number, poolAddress: string): Uint8Array {
     logger.info("Starting GRG inverse pipeline...");
     try {
+      const hmacKey = GrgForward.deriveHmacKey(chainId, poolAddress);
       const decodedShards: (Uint8Array | null)[] = shards.map(s => {
         try {
-          return GrgInverse.golayDecodeWrapper(s);
+          return GrgInverse.golayDecodeWrapper(s, hmacKey);
         } catch (e) {
           logger.warn(`Golay decode failed for a shard: ${e}`);
           return null;

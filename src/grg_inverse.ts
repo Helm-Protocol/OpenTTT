@@ -7,7 +7,7 @@ import { ReedSolomon } from "./reed_solomon";
 export class GrgInverse {
   
   // 1. Golay Decoding & Integrity Check 🔱
-  static golayDecodeWrapper(data: Uint8Array, hmacKey?: Buffer): Uint8Array {
+  static golayDecodeWrapper(data: Uint8Array, hmacKey: Buffer): Uint8Array {
     if (data.length < 8) throw new Error("GRG shard too short for checksum");
 
     // Split data and checksum (last 8 bytes)
@@ -15,7 +15,7 @@ export class GrgInverse {
     const checksum = data.subarray(data.length - 8);
 
     // Verify HMAC-SHA256 Checksum (keyed hash, B1-5: 8 bytes truncated)
-    const key = hmacKey || GrgForward.deriveHmacKey();
+    const key = hmacKey;
     const mac = createHmac("sha256", key).update(Buffer.from(encoded)).digest();
     const expected = mac.subarray(0, 8);
 
@@ -40,7 +40,16 @@ export class GrgInverse {
   // R4-P2-3: Max unary run length to prevent amplification DoS
   private static readonly MAX_GOLOMB_Q = 1_000_000;
 
-  static golombDecode(data: Uint8Array, m: number = 16): Uint8Array {
+  /**
+   * Decode a Golomb-Rice compressed byte stream.
+   *
+   * @param data - Golomb-encoded bit-packed bytes
+   * @param m - Golomb divisor (must be power of 2, default 16)
+   * @param originalLength - If provided, stop decoding once this many values
+   *   have been emitted. This prevents phantom trailing bytes caused by
+   *   zero-padding in the last byte of the encoded stream.
+   */
+  static golombDecode(data: Uint8Array, m: number = 16, originalLength?: number): Uint8Array {
     if (m < 2) throw new Error("[GRG] Golomb parameter m must be >= 2");
     const k = Math.log2(m);
     const totalBits = data.length * 8;
@@ -53,6 +62,9 @@ export class GrgInverse {
     const result: number[] = [];
     let i = 0;
     while (i < totalBits) {
+      // Guard: stop at expected length to avoid processing padding bits
+      if (originalLength !== undefined && result.length >= originalLength) break;
+
       // Read unary part: count 1-bits until a 0-bit
       let q = 0;
       while (i < totalBits && readBit(i) === 1) {
@@ -74,7 +86,7 @@ export class GrgInverse {
     return new Uint8Array(result);
   }
 
-  static verify(data: Uint8Array, originalShards: Uint8Array[], chainId?: number, poolAddress?: string): boolean {
+  static verify(data: Uint8Array, originalShards: Uint8Array[], chainId: number, poolAddress: string): boolean {
     try {
       const hmacKey = GrgForward.deriveHmacKey(chainId, poolAddress);
       const decodedShards: (Uint8Array | null)[] = originalShards.map(s => {

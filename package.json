@@ -35,7 +35,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "test": "jest",
+    "test:coverage": "jest --coverage --forceExit"
   },
   "dependencies": {
     "buffer": "^6.0.3",

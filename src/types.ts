@@ -87,6 +87,13 @@ export interface TTTClientConfig {
    * Optional: Automatically register SIGINT handler for graceful shutdown
    */
   enableGracefulShutdown?: boolean;
+
+  /**
+   * Optional: Maximum number of mint latency samples to keep in the ring buffer.
+   * Used for avgMintLatencyMs calculation in health checks.
+   * Default: 100
+   */
+  maxLatencyHistory?: number;
 }
 
 /**
@@ -106,6 +113,7 @@ export interface AutoMintConfig {
   protocolFeeRate: number;      // 0.02 ~ 0.10 (2%~10%)
   protocolFeeRecipient: string; // Protocol fee recipient address
   fallbackPriceUsd?: bigint;    // Optional fallback price (scale 1e6)
+  maxLatencyHistory?: number;   // Ring buffer size for mint latencies (default 100)
 }
 
 export interface MintResult {

@@ -219,7 +219,7 @@ export class ProtocolFeeCollector {
 
     const normalizedUser = ethers.getAddress(user);
     const domain = {
-      name: "Helm Protocol",
+      name: "OpenTTT_ProtocolFee",
       version: "1",
       chainId: this.chainId,
       verifyingContract: this.verifyingContract

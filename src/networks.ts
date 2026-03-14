@@ -9,8 +9,26 @@ export interface NetworkConfig {
   usdcAddress: string;
 }
 
-// ⚠️ MAINNET ADDRESSES NOT YET DEPLOYED — must be overridden via TTTClientConfig.contractAddress
-// Using these defaults without override will throw at runtime (validated in TTTClient.create)
+/**
+ * Base Mainnet network preset.
+ *
+ * `tttAddress` and `protocolFeeAddress` are set to the zero address because the
+ * TTT contracts have not yet been deployed to Base Mainnet. These are
+ * placeholders only — using them without an override will cause a runtime error
+ * (validated in `TTTClient.create`).
+ *
+ * **Operators deploying to mainnet** must supply their own `contractAddress` and
+ * `feeCollectorAddress` via `TTTClientConfig` when calling `TTTClient.create()`.
+ * Example:
+ * ```ts
+ * const client = await TTTClient.create({
+ *   network: "base",
+ *   contractAddress: "0xYourDeployedTTTContract",
+ *   feeCollectorAddress: "0xYourFeeCollector",
+ *   // ...other config
+ * });
+ * ```
+ */
 export const BASE_MAINNET: NetworkConfig = {
   chainId: 8453,
   rpcUrl: "https://mainnet.base.org",

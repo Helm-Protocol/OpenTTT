@@ -36,6 +36,7 @@ export class TTTClient extends EventEmitter {
   private signer: Signer | null = null;
   private lastTokenId: string | null = null;
   private mintLatencies: number[] = [];
+  private maxLatencyHistory: number;
   private lastMintAt: Date | null = null;
   private startedAt: Date = new Date();
   private minBalanceWei: bigint = ethers.parseEther("0.01"); // 0.01 ETH alert threshold
@@ -43,6 +44,7 @@ export class TTTClient extends EventEmitter {
   constructor(config: AutoMintConfig) {
     super();
     this.config = config;
+    this.maxLatencyHistory = config.maxLatencyHistory ?? 100;
     this.autoMintEngine = new AutoMintEngine(config);
     this.poolRegistry = new PoolRegistry();
 
@@ -68,7 +70,7 @@ export class TTTClient extends EventEmitter {
 
     this.autoMintEngine.setOnLatency((ms) => {
       this.mintLatencies.push(ms);
-      if (this.mintLatencies.length > 100) {
+      if (this.mintLatencies.length > this.maxLatencyHistory) {
         this.mintLatencies.shift();
       }
       this.emit('latency', ms);
@@ -171,6 +173,7 @@ export class TTTClient extends EventEmitter {
         return addr;
       })(),
       fallbackPriceUsd: config.fallbackPriceUsd || 10000n,
+      maxLatencyHistory: config.maxLatencyHistory,
     };
 
     // 4. Instantiate and initialize
@@ -341,8 +344,7 @@ export class TTTClient extends EventEmitter {
    */
   recordMintLatency(ms: number): void {
     this.mintLatencies.push(ms);
-    // Keep last 100 entries
-    if (this.mintLatencies.length > 100) {
+    if (this.mintLatencies.length > this.maxLatencyHistory) {
       this.mintLatencies.shift();
     }
   }
