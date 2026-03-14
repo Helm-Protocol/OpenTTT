@@ -1,4 +1,6 @@
 import { EVMConnector } from "./evm_connector";
+import { ProtocolFeeCollector } from "./protocol_fee";
+import { FeeCalculation } from "./dynamic_fee";
 import { BeforeSwapParams, AfterSwapParams } from "./types";
 /**
  * UniswapV4Hook - TTT-based Uniswap V4 Hook Simulation
@@ -11,8 +13,9 @@ export declare class UniswapV4Hook {
     private minTTTBalance;
     private swapFeeTTT;
     private tttContract;
+    private feeCollector?;
     private stats;
-    constructor(evmConnector: EVMConnector, hookAddress: string, tttTokenAddress: string, minTTTBalance?: bigint, swapFeeTTT?: bigint);
+    constructor(evmConnector: EVMConnector, hookAddress: string, tttTokenAddress: string, minTTTBalance?: bigint, swapFeeTTT?: bigint, feeCollector?: ProtocolFeeCollector);
     /**
      * beforeSwap(params: BeforeSwapParams): Promise<void>
      * Check TTT balance and deduct fees before a swap.
@@ -22,7 +25,7 @@ export declare class UniswapV4Hook {
      * afterSwap(params: AfterSwapParams): Promise<void>
      * Record results and update statistics after a swap.
      */
-    afterSwap(params: AfterSwapParams): Promise<void>;
+    afterSwap(params: AfterSwapParams, burnFeeCalc?: FeeCalculation, signature?: string, nonce?: bigint, deadline?: number): Promise<void>;
     /**
      * getHookAddress(): string
      * Return the hook contract address.

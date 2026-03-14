@@ -1,174 +1,341 @@
-# TTT (TLS TimeToken) Protocol: High-Precision Temporal Consensus and Micropayment Enforcer
+# OpenTTT: TLS-Grade Transaction Ordering for Decentralized Exchanges
 
-**Version**: 1.1.0 (Production Candidate)  
-**Authors**: Arjuna (Jay) $^1$, Cloco $^2$, Krishna $^3$  
-**Affiliation**: Kenosian, Kaleidoscope Research Group  
-**Date**: March 13, 2026
+**Version**: 2.0.0 (Publication Release)
+**Authors**: Arjuna (Jay Shin), Cloco
+**Affiliation**: Kenosian
+**Date**: March 14, 2026
 
 ---
 
 ## Abstract
-The TTT (TLS TimeToken) protocol introduces a novel mechanism for synchronizing high-precision time across decentralized networks, solving the fundamental limitations of block-based temporal consensus. By integrating multi-source NTP synthesis, Proof of Time (PoT) cryptography, and the Adaptive GRG (Golomb-Rice-Golay) data integrity pipeline, TTT provides a verifiable, low-latency timing signal for Ethereum-based environments. We demonstrate a "Self-Purifying" economic model where the protocol enforces a game-theoretic equilibrium, naturally marginalizing malicious actors through the Adaptive Switch mechanism. 
+
+Maximal Extractable Value (MEV) remains the single largest structural tax on decentralized exchange users. Existing mitigations--private mempools, commit-reveal schemes, threshold encryption--rely on trust assumptions or impose latency penalties that degrade execution quality. OpenTTT introduces a fundamentally different approach: a physics-based temporal ordering protocol that makes transaction reordering economically irrational rather than technically impossible. The protocol synthesizes high-precision time from multiple independent NTP sources, encodes block metadata through a three-stage data integrity pipeline (Golomb-Rice compression, Reed-Solomon erasure coding, Binary Golay error correction), and enforces ordering compliance through an adaptive mode-switching mechanism that creates a natural economic gradient favoring honest builders. Smart contracts deployed on Ethereum Sepolia (ERC-1155 token + ProtocolFee collector) settle all verification on-chain. The accompanying TypeScript SDK implements progressive disclosure onboarding, requiring only a signer configuration to begin, while exposing full control over time sources, fee tiers, and oracle configurations for advanced operators.
 
 ---
 
 ## 1. Introduction
-### 1.1 The Problem: Temporal Indeterminacy in MEV
-In current Decentralized Exchanges (DEXs) and Rollups, the concept of "time" is a loose approximation. Block timestamps are provided by miners or sequencers with a granularity of several seconds. This indeterminacy creates a "dark window" within which transactions can be reordered, inserted, or deleted without verifiable proof of their arrival time, acting as the primary catalyst for toxic MEV.
 
-### 1.2 TTT Mission
-The TTT protocol aims to provide a "TLS for Blockchain Time," ensuring that every transaction's temporal claim is verifiable, immutable, and economically settled via the x402 micropayment standard.
+### 1.1 The MEV Problem
+
+In current decentralized exchanges and rollup sequencers, "time" is an approximation. Block timestamps are set by miners or sequencers with granularity measured in seconds. This temporal indeterminacy creates a window within which transactions can be reordered, inserted, or censored without any verifiable proof of their original arrival order. This window is the structural root cause of sandwich attacks, frontrunning, and toxic arbitrage--collectively termed MEV.
+
+Flashbots Protect and similar private mempool solutions mitigate MEV by routing transactions through trusted relayers. However, these systems operate on a trust-based ("request") model: builders are asked to behave honestly, but compliance is not physically enforced. A builder who defects faces social consequences but no immediate economic penalty.
+
+### 1.2 The TTT Thesis
+
+TTT (TLS TimeToken) provides the blockchain equivalent of TLS for the web: a data integrity layer that makes tampering detectable and economically costly. The three components of TTT correspond to:
+
+- **T (Time)**: Multi-source NTP synthesis providing nanosecond-precision timestamps
+- **L (Logic)**: Adaptive mode switching that creates a game-theoretic equilibrium
+- **S (Sync)**: The GRG pipeline that guarantees data integrity through compression, erasure coding, and error correction
+
+The key mechanism is simple: rollups generate precise timestamps for each transaction and deliver them to builders (retaining delivery receipts). Honest builders who preserve the original ordering are verified quickly (Turbo mode, ~50ms) and earn higher throughput. Builders who reorder transactions trigger integrity failures, are switched to Full verification mode (~127ms), and suffer throughput degradation that directly reduces revenue. No explicit punishment is needed; the economic gradient causes dishonest builders to self-select out of the market.
 
 ---
 
-## 2. Mathematical Foundations of Temporal Consensus
+## 2. Proof of Time Protocol
 
-### 2.1 Notation and Definitions
-Let $\mathcal{S} = \{s_1, s_2, \dots, s_n\}$ be a set of $n$ independent NTP sources. Each source $s_i$ provides a reading $r_i = (t_i, d_i)$, where $t_i$ is the timestamp and $d_i$ is the round-trip delay.
+### 2.1 NTP Time Synthesis
 
-### 2.2 Proof of Time (PoT) Generation Algorithm
-A Proof of Time is defined as a cryptographic tuple. The generator fetches standard 48-byte UDP NTP packets.
-*   **T1 (Originate Timestamp)**: Time request sent by client.
-*   **T2 (Receive Timestamp)**: Time request received by server.
-*   **T3 (Transmit Timestamp)**: Time reply sent by server.
-*   **T4 (Destination Timestamp)**: Time reply received by client.
+The `TimeSynthesis` module queries multiple independent NTP sources concurrently. The SDK ships with three default sources:
 
-**Calculations**:
-*   $\text{Offset } \theta = \frac{(T2 - T1) + (T3 - T4)}{2}$
-*   $\text{Delay } \delta = (T4 - T1) - (T3 - T2)$
+| Source | Host | Authority |
+|--------|------|-----------|
+| NIST | `time.nist.gov` | US National Institute of Standards |
+| KRISS | `time.kriss.re.kr` | Korea Research Institute of Standards |
+| Google | `time.google.com` | Google Public NTP |
 
-**Algorithm: Median Synthesis**
-1.  Query $n$ NTP sources.
-2.  Filter invalid responses (Timeout, Stratum > 3).
-3.  Calculate $t_i = T4_i + \theta_i$ for each source.
-4.  Sort $t_1 \le t_2 \le \dots \le t_k$.
-5.  $T_{mid} = t_{\lfloor k/2 \rfloor}$ (Median Outlier Rejection).
+Each NTP query produces a `TimeReading` containing a nanosecond-precision timestamp, uncertainty bound in milliseconds, and stratum level:
 
-### 2.3 SynthesizedTime Data Structure
 ```typescript
-interface SynthesizedTime {
-  timestamp: number;     // The finalized median T_mid in ms
-  uncertainty: number;   // Aggregate dispersion bound in ms
-  sources: number;       // Number of valid stratum 1/2 sources used
-  signature: string;     // ECDSA signature of the block builder
+interface TimeReading {
+  timestamp: bigint;    // Unix nanoseconds
+  uncertainty: number;  // +/- ms (root dispersion + RTT/2)
+  stratum: number;      // 1 = atomic clock, 2 = NTP server
+  source: string;
 }
 ```
 
-### 2.4 PoT Self-Sufficiency Axiom
-**Axiom**: The Proof of Time (PoT) is entirely self-sufficient, derived strictly from multi-source NTP median consensus. It requires exactly zero external infrastructure or proprietary hardware to achieve verifiable temporal finality. A minimum of two independent NTP sources is sufficient to establish a cryptographically enforceable timeline.
+The synthesis algorithm follows the standard NTP four-timestamp model. For each source `s_i`:
 
----
+- **T1**: Client originate timestamp (local nanoseconds)
+- **T2**: Server receive timestamp (extracted from NTP response bytes 32-35)
+- **T3**: Server transmit timestamp (extracted from NTP response bytes 40-43)
+- **T4**: Client destination timestamp (local nanoseconds)
 
-## 3. The Adaptive GRG Pipeline
-The GRG pipeline compresses and error-corrects block metadata.
+Clock offset and network delay are computed as:
 
-### 3.1 Stage 1: Golomb-Rice Compression
-Compresses timestamp deltas $\Delta t$. Parameters: $M = 16$, $k = \log_2(16) = 4$.
-$$ q = \lfloor \Delta t / 16 \rfloor, \quad r = \Delta t \bmod 16 $$
-*Example*: For $\Delta t = 35$: $q = 2$, $r = 3$. Unary $q$ = `110`, Binary $r$ = `0011`. Final = `1100011`.
-*Security Guard*: Maximum unary run length `MAX_Q = 1,000,000` to prevent amplification DoS. Empty inputs are strictly rejected to maintain roundtrip identity.
-
-### 3.2 Stage 2: RedStuff Erasure Coding (Reed-Solomon GF(2^8))
-Provides systematic redundancy using Galois Field $\text{GF}(2^8)$ with primitive polynomial `0x11D` ($x^8+x^4+x^3+x^2+1$).
-*   **Configuration**: $k=4$ data shards, $m=2$ parity shards (Total $n=6$).
-*   **Shard Size**: $\lceil \text{length} / 4 \rceil$ padded to a multiple of 3.
-*   **Vandermonde Matrix**: Encodes data such that ANY 4-of-6 shards can mathematically reconstruct the original payload via matrix inversion.
-
-### 3.3 Stage 3: Binary Golay Code $\mathcal{G}_{24}$
-An $[24, 12, 8]$ linear block code. It multiplies 12-bit chunks with a generator matrix $G = [I_{12} | P]$.
-The $12 \times 12$ parity matrix $P$ is:
-```text
-110111000101
-101110001011
-011100010111
-111000101101
-110001011011
-100010110111
-000101101111
-001011011101
-010110111001
-101101110001
-011011100011
-111111111111
+```
+offset = ((T2 - T1) + (T3 - T4)) / 2
+delay  = (T4 - T1) - (T3 - T2)
 ```
 
-### 3.4 Stage 4: Data Integrity (SHA-256)
-A 64-bit (8-byte) truncated slice of a SHA-256 hash of the payload is appended. This guarantees collision resistance up to $2^{32}$ operations, fundamentally preventing intra-block tampering.
+Uncertainty for each reading combines root dispersion (from NTP packet byte offset 8, fixed-point 16.16 format) with half the round-trip time:
+
+```
+uncertainty = rootDispersion_ms + (delay_ns / 1_000_000) / 2
+```
+
+### 2.2 Median Outlier Rejection
+
+After collecting readings from all configured sources (with 2-second per-source timeout), the synthesis algorithm:
+
+1. Filters out failed responses (timeout, stratum 0, stratum > 15, pre-1970 timestamps)
+2. Sorts valid readings by timestamp
+3. For 1 reading: uses it directly (with degraded confidence)
+4. For 2 readings: averages both timestamps and uncertainties
+5. For 3+ readings: selects the median reading
+
+The result is a `SynthesizedTime`:
+
+```typescript
+interface SynthesizedTime {
+  timestamp: bigint;     // Finalized median timestamp (nanoseconds)
+  confidence: number;    // valid_readings / total_sources (0.0 to 1.0)
+  uncertainty: number;   // Aggregate dispersion bound (ms)
+  sources: number;       // Count of valid sources used
+  stratum: number;       // Best stratum among used sources
+}
+```
+
+### 2.3 Proof of Time Generation and Verification
+
+A `ProofOfTime` extends `SynthesizedTime` with per-source signatures (source name, timestamp, uncertainty) enabling independent verification. The verification algorithm enforces a 100ms tolerance: every source reading must fall within 100ms of the synthesized median. Readings outside this tolerance indicate network jitter or NTP spoofing and cause the proof to be rejected.
+
+```typescript
+interface ProofOfTime {
+  timestamp: bigint;
+  uncertainty: number;
+  sources: number;
+  stratum: number;
+  confidence: number;
+  signatures: { source: string; timestamp: bigint; uncertainty: number }[];
+}
+```
+
+For on-chain submission, `TimeSynthesis.getOnChainHash()` produces a `bytes32` keccak256 hash encoding the timestamp (milliseconds), scaled uncertainty, source count, stratum, and scaled confidence.
+
+### 2.4 Self-Sufficiency Axiom
+
+The Proof of Time is entirely self-sufficient. It derives strictly from multi-source NTP median consensus and requires zero proprietary hardware or external infrastructure. A minimum of two independent NTP sources is sufficient to establish a cryptographically verifiable timeline.
 
 ---
 
-## 4. Adaptive Switch State Machine
-The core regulatory mechanism enforcing game-theoretic equilibrium.
+## 3. The GRG Data Integrity Pipeline
 
-### 4.1 State Transition Diagram
-```text
-         [ R_match >= 95% ] && [ Length >= 20 ] && [ Cooldown == 0 ]
+GRG is a three-stage forward pipeline (compression, erasure coding, error correction) with a corresponding inverse pipeline for verification. The pipeline processes block metadata to produce tamper-evident shards that can tolerate both data loss and bit-level corruption.
+
+### 3.1 Stage 1: Golomb-Rice Compression
+
+Golomb-Rice coding compresses byte values using a tunable parameter `M`. The SDK uses `M = 16` (`k = log2(16) = 4`).
+
+For each byte value `v`:
+```
+quotient  q = floor(v / 16)
+remainder r = v mod 16
+```
+
+The quotient is encoded in unary (`q` ones followed by a zero), and the remainder in `k`-bit binary. For example, byte value 35: `q = 2`, `r = 3`, yielding unary `110` + binary `0011` = `1100011`.
+
+**Security guard**: The decoder enforces a maximum unary run length of 1,000,000 to prevent amplification-based denial-of-service attacks. Empty inputs are rejected outright to maintain roundtrip identity (the property that `decode(encode(x)) = x` for all valid `x`).
+
+Before compression, a 4-byte big-endian length prefix is prepended to enable exact-length reconstruction during the inverse pipeline.
+
+### 3.2 Stage 2: Reed-Solomon Erasure Coding (GF(2^8))
+
+The compressed payload is split into `k = 4` data shards with `m = 2` parity shards (total `n = 6`). The implementation operates over Galois Field GF(2^8) with irreducible polynomial `0x11D` (x^8 + x^4 + x^3 + x^2 + 1).
+
+**Encoding**: A Vandermonde matrix is constructed over GF(2^8), normalized so that the top `k x k` sub-matrix becomes the identity (systematic encoding). Parity shards are computed by multiplying data bytes against the lower rows of the normalized matrix.
+
+**Shard sizing**: Each shard is `ceil(ceil(data.length / 4) / 3) * 3` bytes, padded to a multiple of 3 for downstream Golay alignment.
+
+**Decoding**: Any 4 of 6 shards suffice for reconstruction. The decoder identifies present shards, extracts the corresponding rows from the encoding matrix, inverts the sub-matrix over GF(2^8), and multiplies against the available shard data to recover the original payload.
+
+### 3.3 Stage 3: Binary Golay Code G(24,12)
+
+Each shard is protected by the extended binary Golay code, a [24, 12, 8] linear block code that corrects up to 3 bit errors and detects 4. The implementation uses systematic form `G = [I_12 | P]` where `P` is the standard 12x12 parity matrix derived from generator polynomial `g(x) = x^11 + x^10 + x^6 + x^5 + x^4 + x^2 + 1`:
+
+```
+P rows (hex): C75, 49F, D4B, 6E3, 9B3, B66, ECC, 1ED, 3DA, 7B4, B1D, E3A
+```
+
+**Encoding**: Input bytes are grouped into 3-byte blocks, split into two 12-bit words, and each word is encoded to a 24-bit codeword by appending 12 parity bits computed as `msg * P`.
+
+**Decoding**: Full syndrome decoding is implemented using both `P` and its transpose `P^T` (which is not equal to `P`). The decoder handles:
+
+1. Syndrome `s = 0`: no errors
+2. `weight(s) <= 3`: errors confined to parity bits only
+3. `weight(s XOR P_i) <= 2` for some row `i`: single message-bit error plus possible parity errors
+4. Second syndrome `s2 = s * P^T`, `weight(s2) <= 3`: errors confined to message bits
+5. `weight(s2 XOR PT_i) <= 2`: combined message and parity errors
+6. Otherwise: uncorrectable (more than 3 bit errors)
+
+### 3.4 Stage 4: SHA-256 Integrity Checksum
+
+After Golay encoding, an 8-byte truncated SHA-256 hash of the encoded shard is appended. During the inverse pipeline, this checksum is verified before Golay decoding proceeds. A mismatch produces a "GRG tamper detected" error, immediately triggering the Adaptive Switch to enter Full mode.
+
+### 3.5 Pipeline Input Bounds
+
+The forward pipeline enforces a maximum input size of 100 MB (`100 * 1024 * 1024` bytes) to prevent out-of-memory attacks.
+
+---
+
+## 4. Adaptive Mode Switching
+
+The Adaptive Switch is the core regulatory mechanism that creates the economic gradient between honest and dishonest builders.
+
+### 4.1 Operating Modes
+
+| Mode | Verification Latency | Description |
+|------|---------------------|-------------|
+| TURBO | ~50ms | Reduced verification for consistently honest builders |
+| FULL | ~127ms | Complete GRG pipeline verification for all blocks |
+
+### 4.2 State Machine
+
+```
+         [ R_match >= 95% ] && [ history >= 20 ] && [ cooldown == 0 ]
         +-------------------------------------------------------------+
         |                                                             |
         v                                                             |
   +-----------+                                                 +-----------+
-  |           |   [ R_match < 85% ] || [ Integrity Failure ]    |           |
+  |           |   [ R_match < 85% ] || [ GRG integrity fail ]  |           |
   |   TURBO   | ----------------------------------------------> |   FULL    |
   |   (50ms)  |                                                 |  (127ms)  |
   |           | <---------------------------------------------- |           |
-  +-----------+              (Cooldown Expires)                 +-----------+
+  +-----------+              (Conditions met)                   +-----------+
 ```
 
-### 4.2 Transition Conditions & Hysteresis
-*   **FULL $\rightarrow$ TURBO**: Requires $R_{match} \ge 95\%$ over the last 20 blocks, and current cooldown must be 0.
-*   **TURBO $\rightarrow$ FULL**: Triggered immediately upon a single GRG integrity failure, or if $R_{match} < 85\%$.
+### 4.3 Transition Conditions with Hysteresis
 
-### 4.3 Penalty & Exponential Backoff
-Upon failure, a mandatory block cooldown is applied before re-entry to TURBO is possible.
-Consecutive failures trigger exponential backoff:
-*   Failure 1: **20 blocks**
-*   Failure 2: **40 blocks**
-*   Failure 3: **80 blocks**
-*   Failure 4: **160 blocks**
-*   Failure 5+: **320 blocks**
+The switch uses asymmetric thresholds to prevent oscillation:
 
-### 4.4 Nash Equilibrium
-Let $U_h$ be the utility of an honest builder and $U_m$ be the utility of a malicious builder.
-$$ U_h = \mathcal{R} - C_{turbo} $$
-$$ U_m = \mathcal{R} + V_{mev} - C_{full} - L_{penalty} $$
-The strict hysteresis and backoff penalty ensure $U_h > U_m$. Tampering builders are economically and naturally marginalized from the market.
+- **FULL to TURBO**: Requires match rate >= 95% over a sliding window of 20 blocks, with zero remaining cooldown penalty
+- **TURBO to FULL**: Triggered immediately by any GRG integrity failure, or when match rate drops below 85%
+
+This hysteresis gap (95% entry vs 85% maintenance) prevents rapid mode oscillation near the threshold.
+
+### 4.4 Block Verification
+
+For each block, the switch performs two checks:
+
+1. **Order match**: Transaction hashes in the block must exactly match the expected order from the TTT record (strict positional equality)
+2. **Time match**: Block timestamp must be within 100ms tolerance of the TTT record timestamp
+
+Additionally, GRG integrity verification (`GrgInverse.verify()`) runs on every block regardless of current mode. An integrity failure in TURBO mode triggers an immediate penalty cooldown.
+
+### 4.5 Exponential Backoff Penalty
+
+Upon integrity failure in TURBO mode, a mandatory block cooldown is imposed before TURBO re-entry becomes possible. Consecutive failures trigger exponential backoff:
+
+| Consecutive Failures | Cooldown (blocks) |
+|---------------------|-------------------|
+| 1 | 20 |
+| 2 | 40 |
+| 3 | 80 |
+| 4 | 160 |
+| 5+ | 320 (capped) |
+
+Successful sustained TURBO operation resets the consecutive failure counter to zero.
+
+### 4.6 Nash Equilibrium Analysis
+
+Let `U_h` be the utility of an honest builder and `U_m` be the utility of a malicious builder:
+
+```
+U_h = Revenue - C_turbo                          (low verification cost, high throughput)
+U_m = Revenue + V_mev - C_full - L_penalty        (high verification cost, low throughput)
+```
+
+The throughput differential between TURBO (50ms) and FULL (127ms) modes, combined with the exponential backoff penalty `L_penalty`, ensures that `U_h > U_m` in expectation. Tampering builders are not punished through slashing or governance--they are economically marginalized through reduced throughput and compounding cooldown periods. This creates a self-purifying market where dishonest participants naturally exit.
+
+### 4.7 Fee Discount
+
+Builders operating in TURBO mode receive a 20% fee discount on protocol fees, further reinforcing the economic incentive for honest behavior.
 
 ---
 
-## 5. EIP-712 Domain and Typed Data Structure
-To collect USDC securely without holding operator private keys on-chain.
+## 5. Dynamic Fee Engine
 
-### 5.1 Domain & Types
-```json
-{
-  "domain": {
-    "name": "Helm Protocol",
-    "version": "1",
-    "chainId": 8453,
-    "verifyingContract": "0xProtocolFeeAddress"
-  },
-  "types": {
-    "CollectFee": [
-      { "name": "token", "type": "address" },
-      { "name": "amount", "type": "uint256" },
-      { "name": "nonce", "type": "uint256" },
-      { "name": "deadline", "type": "uint256" }
-    ]
-  }
-}
-```
+### 5.1 Tier Structure
 
-### 5.2 Replay Cache Architecture
-A strict memory bounds mechanism to prevent signature replay attacks across environments.
-*   **Structure**: `Map<string, number>` (Hash $\rightarrow$ Timestamp)
-*   **Capacity Limit**: 10,000 entries max.
-*   **TTL (Time-to-Live)**: 3,600 seconds (1 hour).
-*   **Prune Interval**: Background sweep every 60 seconds.
+Fees are dynamically anchored to USD via oracle price feeds. Four resolution tiers serve different use cases:
+
+| Tier | Target Resolution | Base USD Cost | Primary Use Case |
+|------|-------------------|---------------|------------------|
+| `T0_epoch` | ~6.4 minutes | $0.001 | Standard L1 DEX swaps |
+| `T1_block` | ~2 seconds | $0.01 | L2 sequencer priority (default) |
+| `T2_slot` | ~12 seconds | $0.24 | High-frequency arbitrage |
+| `T3_micro` | ~100 ms | $12.00 | Institutional pipelines |
+
+### 5.2 Protocol Fee Phases
+
+The protocol fee rate scales based on the current TTT token price, creating a bootstrapping-friendly fee curve:
+
+| Phase | Mint Fee (bps) | Burn Fee (bps) | Price Threshold |
+|-------|---------------|----------------|-----------------|
+| BOOTSTRAP | 500 (5%) | 200 (2%) | < $0.005 |
+| GROWTH | 1000 (10%) | 300 (3%) | < $0.05 |
+| MATURE | 1000 (10%) | 500 (5%) | < $0.50 |
+| PREMIUM | 800 (8%) | 500 (5%) | >= $0.50 |
+
+### 5.3 Oracle Architecture
+
+Price discovery follows a strict priority chain:
+
+1. **Chainlink (primary)**: Resistant to flash-loan manipulation. Staleness hard-bounded to 1800 seconds (30 minutes). Maximum accepted price: 10^12 (sanity guard). Price converted from 8 decimals to 6 decimals.
+2. **Uniswap V4 spot (fallback)**: Used only when no Chainlink feed is configured. The SDK emits a warning when relying on spot prices due to flash-loan vulnerability. Price computed as: `P = (sqrtPriceX96 / 2^96)^2`, scaled to 6 decimal places.
+3. **Fallback price (last resort)**: A statically configured `fallbackPriceUsd` value, validated to be strictly positive at construction time to prevent division-by-zero in all downstream fee calculations.
+
+Price caching defaults to a recommended maximum of 5000ms for DEX pricing accuracy, with configurable duration and explicit `invalidateCache()` for forced refresh.
 
 ---
 
-## 6. Smart Contract ABI Specification
-### 6.1 TTT.sol (ERC-1155)
+## 6. EIP-712 Signature Verification and Fee Collection
+
+### 6.1 Domain and Typed Data
+
+All fee collection operations are authorized via EIP-712 structured signatures, enabling gasless approval flows and x402 micropayment compliance:
+
+```typescript
+const domain = {
+  name: "Helm Protocol",
+  version: "1",
+  chainId: chainId,          // Validated against connected network
+  verifyingContract: address  // ProtocolFee.sol deployment
+};
+
+const types = {
+  CollectFee: [
+    { name: "token", type: "address" },
+    { name: "amount", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+    { name: "deadline", type: "uint256" }
+  ]
+};
+```
+
+### 6.2 Replay Protection
+
+A bounded LRU replay cache prevents signature reuse:
+
+- **Structure**: `Map<string, number>` (signature hash to timestamp)
+- **Capacity**: 10,000 entries maximum
+- **TTL**: 3,600 seconds (1 hour)
+- **Pruning**: Background sweep at most once per 60 seconds to prevent O(n) DoS on every call. When over capacity, oldest entries are evicted first.
+
+### 6.3 Cross-Chain Safety
+
+The `chainId` in the EIP-712 domain is validated against the actual connected network at initialization time. A mismatch throws immediately, preventing cross-chain signature replay attacks.
+
+---
+
+## 7. Smart Contract Design
+
+### 7.1 TTT.sol (ERC-1155)
+
+The TTT token is an ERC-1155 multi-token contract. Each token ID represents a distinct temporal proof. The contract exposes:
+
 ```solidity
 function mint(address to, uint256 amount, bytes32 grgHash) external;
 function burn(uint256 amount, bytes32 grgHash, uint256 tier) external;
@@ -178,7 +345,12 @@ event TTTMinted(address indexed to, uint256 amount, bytes32 grgHash);
 event TTTBurned(address indexed from, uint256 amount, bytes32 grgHash, uint256 tier);
 ```
 
-### 6.2 ProtocolFee.sol
+The `grgHash` parameter binds each mint/burn operation to a specific GRG pipeline output, creating an on-chain audit trail linking token operations to verified temporal proofs.
+
+### 7.2 ProtocolFee.sol
+
+A dedicated fee collection contract that verifies EIP-712 signatures on-chain:
+
 ```solidity
 function collectFee(
     address token,
@@ -188,60 +360,198 @@ function collectFee(
     uint256 deadline
 ) external;
 
-event FeeCollected(address indexed token, uint256 amount, uint256 nonce);
+event FeeCollected(address indexed payer, uint256 amount, uint256 nonce);
 ```
 
----
+### 7.3 Deployed Contracts (Ethereum Sepolia)
 
-## 7. Dynamic Fee Engine
-Pricing is dynamically anchored to USD via Chainlink oracles.
+| Contract | Address | Etherscan |
+|----------|---------|-----------|
+| TTT (ERC-1155) | `0xde357135cA493e59680182CDE9E1c6A4dA400811` | [View](https://sepolia.etherscan.io/address/0xde357135cA493e59680182CDE9E1c6A4dA400811) |
+| ProtocolFee | `0xE289337d3a79b22753BDA03510a8b8E4D1040F21` | [View](https://sepolia.etherscan.io/address/0xE289337d3a79b22753BDA03510a8b8E4D1040F21) |
+| Deployer/Treasury | `0x98603D935b6Ba2472a7cb48308e801F7ab6287f7` | |
 
-### 7.1 Tier Parameters
-| Tier | Target Resolution | Base USD Cost | Primary Use Case |
-|------|-------------------|---------------|------------------|
-| `T0_epoch` | ~12 seconds | $0.001 | Standard L1 DEX swaps |
-| `T1_block` | ~2 seconds | $0.010 | L2 sequencer priority |
-| `T2_slot` | ~500 ms | $0.240 | High-frequency arbitrage |
-| `T3_micro` | ~100 ms | $1.500 | Institutional pipelines |
-
-### 7.2 Bootstrapping Phases
-The multiplier scales over time to stabilize the network.
-| Phase | Multiplier | Duration |
-|-------|------------|----------|
-| `BOOTSTRAP` | 0.1x | Month 1 |
-| `GROWTH` | 0.5x | Month 2-3 |
-| `STABLE` | 1.0x | Month 4-12 |
-| `PREMIUM` | 1.5x | Year 2+ |
-
-### 7.3 Oracle Mechanics
-*   **Chainlink Staleness**: Hard bounded to `1800` seconds.
-*   **Fallback Price**: Used strictly if Chainlink reverts or goes stale (Division-by-zero guard enforces `fallbackPriceUsd > 0`).
-*   **Uniswap V4 Formula**: $P = \left( \frac{\text{sqrtPriceX96}}{2^{96}} \right)^2$
+Base Mainnet deployment is pending. The SDK validates against zero-address contract configurations and throws at initialization if mainnet addresses have not been explicitly provided.
 
 ---
 
-## 8. Error Codes & Resolution
+## 8. SDK Design: Progressive Disclosure
+
+The OpenTTT SDK follows the progressive disclosure pattern observed in leading Web3 SDKs (thirdweb, Flashbots mev-share, wagmi). The design principle: a single required field (signer) to start, with every other parameter defaulting to production-ready values.
+
+### 8.1 Level 1: Minimal Configuration (3 lines)
+
+```typescript
+import { TTTClient } from "@openttt/sdk";
+
+const ttt = await TTTClient.forSepolia({
+  signer: { type: 'privateKey', envVar: 'OPERATOR_PK' }
+});
+ttt.startAutoMint();
+```
+
+The `forBase()` and `forSepolia()` factory methods embed all network-specific defaults: chain ID, RPC URL, contract addresses, USDC address, and protocol fee recipient.
+
+### 8.2 Level 2: Customized Configuration (5 lines)
+
+```typescript
+const ttt = await TTTClient.create({
+  signer: { type: 'privateKey', envVar: 'OPERATOR_PK' },
+  network: 'sepolia',
+  tier: 'T2_slot',
+  rpcUrl: 'https://my-dedicated-rpc.com',
+});
+```
+
+### 8.3 Level 3: Full Control
+
+```typescript
+const ttt = await TTTClient.create({
+  signer: {
+    type: 'kms',
+    provider: 'aws',
+    keyId: 'arn:aws:kms:us-east-1:...',
+    region: 'us-east-1'
+  },
+  network: {
+    chainId: 8453,
+    rpcUrl: 'https://custom-rpc.example.com',
+    tttAddress: '0x...',
+    protocolFeeAddress: '0x...',
+    usdcAddress: '0x...'
+  },
+  tier: 'T3_micro',
+  timeSources: ['nist', 'kriss', 'google'],
+  protocolFeeRate: 0.05,
+  fallbackPriceUsd: 10000n,
+  poolAddress: '0x...',
+  enableGracefulShutdown: true,
+});
+```
+
+### 8.4 Signer Abstraction
+
+The SDK supports four signer types through a discriminated union:
+
+| Type | Backend | Use Case |
+|------|---------|----------|
+| `privateKey` | ethers.js `Wallet` | Development, simple operators |
+| `turnkey` | Turnkey TEE (Rust) | Institution-grade key custody |
+| `privy` | Privy embedded wallets | Social login flows (planned) |
+| `kms` | AWS KMS / GCP Cloud HSM | Cloud-native key management |
+
+Both AWS and GCP KMS signers implement full `AbstractSigner` including `signMessage`, `signTransaction`, and `signTypedData`, with DER signature parsing and recovery parameter (`v`) brute-force derivation.
+
+### 8.5 Health Monitoring
+
+The SDK exposes a `getHealth()` endpoint returning structured health status:
+
+```typescript
+interface HealthStatus {
+  healthy: boolean;
+  checks: {
+    initialized: boolean;
+    rpcConnected: boolean;
+    signerAvailable: boolean;
+    balanceSufficient: boolean;
+    ntpSourcesOk: boolean;
+  };
+  metrics: {
+    mintCount: number;
+    mintFailures: number;
+    successRate: number;
+    totalFeesPaid: string;
+    avgMintLatencyMs: number;
+    lastMintAt: string | null;
+    uptimeMs: number;
+  };
+  alerts: string[];
+}
+```
+
+Alerts are emitted for RPC connection failures, low ETH balance (configurable threshold, default 0.01 ETH), and high mint failure rates (> 5 failures with < 80% success rate). Latency tracking maintains a rolling window of the last 100 mint operations.
+
+---
+
+## 9. Security Analysis
+
+### 9.1 Defense-in-Depth Summary
+
+| Layer | Mechanism | Implementation |
+|-------|-----------|----------------|
+| Time spoofing | Multi-source NTP median with 100ms tolerance | `TimeSynthesis.verifyProofOfTime()` |
+| Data tampering | SHA-256 checksum + Golay error correction | `GrgForward.golayEncodeWrapper()` |
+| Data loss | Reed-Solomon 4-of-6 erasure coding | `ReedSolomon.encode/decode()` |
+| Amplification DoS | Golomb unary run cap (1M), GRG input cap (100MB) | `GrgInverse.MAX_GOLOMB_Q`, `GrgPipeline.MAX_INPUT_SIZE` |
+| Signature replay | Bounded LRU cache (10K, 1h TTL, 60s prune) | `ProtocolFeeCollector.pruneExpiredSignatures()` |
+| Cross-chain replay | chainId validation against connected network | `ProtocolFeeCollector.validateChainId()` |
+| Flash-loan price manipulation | Chainlink-first oracle priority | `DynamicFeeEngine.getTTTPriceUsd()` |
+| Division by zero | Constructor-time `fallbackPriceUsd > 0` guard | `DynamicFeeEngine` constructor |
+| EVM gas DoS | 5000ms estimateGas timeout | `EVMConnector` |
+| Memory exhaustion | Pool registry hard cap (10,000 pools) | `PoolRegistry` |
+| NTP packet validation | Stratum bounds [1, 15], pre-1970 timestamp rejection, 48-byte minimum | `NTPSource.getTime()` |
+
+### 9.2 Invariants
+
+The following invariants are enforced throughout the codebase:
+
+1. **Roundtrip identity**: For all non-empty inputs `x`, `GrgInverse(GrgForward(x)) = x`. Empty inputs are rejected at the forward pipeline entry.
+2. **Length preservation**: The inverse pipeline verifies that decoded length matches the original length prepended during encoding. A mismatch throws rather than silently truncating.
+3. **Golay P^T correctness**: The decoder uses a separately computed transpose matrix `P^T` (not `P` itself, which is not symmetric). Without this, syndrome decoding fails for approximately 24% of weight-2 and 50% of weight-3 error patterns.
+
+---
+
+## 10. Error Taxonomy
 
 | Module | Code | Meaning | Resolution |
-|---|---|---|---|
-| `[EVM]` | `Insufficient gas funds` | Wallet cannot cover gas | Top up operator wallet with native ETH |
-| `[EVM]` | `Execution reverted` | Smart contract rejected state | Verify nonces and deadlines |
-| `[GRG]` | `Tamper detected` | Checksum or Golay failure | Dropped to FULL mode. Investigate payload |
-| `[GRG]` | `Empty input` | Roundtrip identity violation | Ensure payload $> 0$ bytes |
-| `[ProtocolFee]` | `Signature expired` | Deadline passed | Regenerate EIP-712 signature |
-| `[DynamicFee]` | `Oracle Stale` | Chainlink $> 1800$s | Fallback price engaged automatically |
-| `[TimeSynthesis]`| `Timeout` | NTP unresponsive | Ensure UDP 123 is unblocked. SDK retries |
-| `[x402]` | `Insufficient TTT` | Balance depleted | Increase AutoMint `threshold` config |
+|--------|------|---------|------------|
+| `[TimeSynthesis]` | All NTP sources failed | Zero valid readings | Ensure UDP 123 is unblocked; check NTP server reachability |
+| `[TimeSynthesis]` | PoT self-verification failed | Source readings exceed 100ms tolerance | Investigate network jitter or potential NTP spoofing |
+| `[GRG]` | Tamper detected: SHA-256 mismatch | Checksum verification failed | Dropped to FULL mode; investigate payload integrity |
+| `[GRG]` | Tamper detected: uncorrectable Golay | More than 3 bit errors per codeword | Dropped to FULL mode; severe corruption or deliberate tampering |
+| `[GRG]` | Empty input | Roundtrip identity violation | Ensure payload is non-empty before GRG encoding |
+| `[GRG]` | Unary run exceeds 1M | Malformed or malicious Golomb-coded input | Reject input; potential amplification attack |
+| `[GRG]` | Length mismatch in inverse | Decoded length differs from encoded length | Data corruption during transit |
+| `[DynamicFee]` | Oracle stale | Chainlink data > 1800s old | Fallback price engaged automatically |
+| `[DynamicFee]` | Price exceeds MAX_PRICE | Chainlink returned > 10^12 | Fallback price engaged; investigate oracle feed |
+| `[ProtocolFee]` | Signature already used | Replay cache hit | Generate new signature with fresh nonce |
+| `[ProtocolFee]` | Signature deadline expired | Deadline timestamp in the past | Regenerate EIP-712 signature with future deadline |
+| `[ProtocolFee]` | Chain ID mismatch | Configured chainId differs from network | Verify network configuration matches connected RPC |
+| `[Signer]` | Private key missing | Neither key nor env var provided | Set environment variable or provide key in config |
+| `[EVM]` | Insufficient gas funds | Wallet ETH balance too low | Top up operator wallet with native ETH |
 
 ---
 
-## 9. Comprehensive Security Analysis
-TTT incorporates a defense-in-depth architecture tested across R1-R4 audits:
-1.  **EstimateGas Timeout**: 5000ms bounds on EVM calls to prevent RPC DoS vectors.
-2.  **Slippage Protection**: 5% maximum bound on automated TTT DEX swaps.
-3.  **Cross-Chain Replay Guard**: `chainId` tightly bound inside EIP-712 structured data.
-4.  **Pool Registry Limits**: Hard cap of `10,000` registered pool pairs to prevent memory exhaustion.
-5.  **Chainlink-First Priority**: Eliminates exposure to flash-loan price manipulation inherent to direct DEX queries.
+## 11. Future Work
+
+### 11.1 Base Mainnet Deployment
+
+Smart contracts are currently deployed on Ethereum Sepolia testnet. Mainnet deployment on Base (chainId 8453) is the immediate next milestone. The SDK already contains Base Mainnet network configuration with placeholder addresses and runtime validation that prevents accidental use of zero-address contracts.
+
+### 11.2 RPC Proxy Layer
+
+An intermediary RPC proxy that transparently intercepts `eth_sendRawTransaction` calls, attaches Proof of Time metadata, and routes through the GRG pipeline--enabling TTT protection without requiring DEX operators to modify their existing transaction submission code.
+
+### 11.3 L2 Sequencer Integration
+
+Direct integration with L2 sequencer ordering logic, where the Adaptive Switch operates at the sequencer level rather than the builder level. This would provide TTT guarantees at the rollup's native ordering layer.
+
+### 11.4 GEO-Sat operator Satellite Time Sources
+
+Integration of satellite-based time sources (GEO-Sat operator infrastructure) to complement NTP, providing an independent physical timing channel resistant to internet-level routing attacks.
 
 ---
-*Copyright © 2026 Kenosian. All rights reserved.*
+
+## References
+
+1. Daian, P. et al. "Flash Boys 2.0: Frontrunning in Decentralized Exchanges." IEEE S&P, 2020.
+2. RFC 5905. "Network Time Protocol Version 4: Protocol and Algorithms Specification." IETF, 2010.
+3. Golomb, S.W. "Run-length encodings." IEEE Transactions on Information Theory, 1966.
+4. Reed, I.S. and Solomon, G. "Polynomial Codes Over Certain Finite Fields." SIAM, 1960.
+5. Golay, M.J.E. "Notes on Digital Coding." Proceedings of the IRE, 1949.
+6. EIP-712. "Ethereum typed structured data hashing and signing." Ethereum Foundation, 2017.
+7. ERC-1155. "Multi Token Standard." Ethereum Foundation, 2018.
+
+---
+
+*Copyright 2026 Kenosian. All rights reserved.*

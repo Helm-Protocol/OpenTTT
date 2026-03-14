@@ -33,11 +33,15 @@ export type SignerConfig = {
     provider: 'aws' | 'gcp';
     keyId: string;
     region?: string;
+    projectId?: string;
+    locationId?: string;
+    keyRingId?: string;
+    keyVersionId?: string;
 };
 /**
  * Base wrapper for all signers to ensure unified interface within the SDK
  */
-export declare abstract class AbstractSigner {
+export declare abstract class TTTAbstractSigner {
     readonly inner: Signer;
     constructor(inner: Signer);
     getAddress(): Promise<string>;
@@ -45,28 +49,28 @@ export declare abstract class AbstractSigner {
 /**
  * Standard Private Key Signer (Institutional/Dev use)
  */
-export declare class PrivateKeySigner extends AbstractSigner {
+export declare class PrivateKeySigner extends TTTAbstractSigner {
     constructor(signer: Wallet);
 }
 /**
  * TEE-based institution-grade signer (Turnkey)
  */
-export declare class TurnkeySignerWrapper extends AbstractSigner {
+export declare class TurnkeySignerWrapper extends TTTAbstractSigner {
     constructor(signer: TurnkeySigner);
 }
 /**
  * Social/Embedded wallet signer (Privy)
  */
-export declare class PrivySigner extends AbstractSigner {
+export declare class PrivySigner extends TTTAbstractSigner {
     constructor(signer: Signer);
 }
 /**
- * AWS/GCP KMS based signer
+ * Cloud HSM (KMS) based signer
  */
-export declare class KMSSigner extends AbstractSigner {
+export declare class KMSSigner extends TTTAbstractSigner {
     constructor(signer: Signer);
 }
 /**
  * Factory function to create appropriate signer based on config
  */
-export declare function createSigner(config: SignerConfig): Promise<AbstractSigner>;
+export declare function createSigner(config: SignerConfig): Promise<TTTAbstractSigner>;

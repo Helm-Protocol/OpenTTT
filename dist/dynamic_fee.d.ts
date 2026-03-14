@@ -47,6 +47,10 @@ export declare class DynamicFeeEngine {
     constructor(config: PriceOracleConfig);
     connect(rpcUrl: string): Promise<void>;
     getTTTPriceUsd(): Promise<bigint>;
+    /**
+     * 캐시 강제 무효화 — 외부에서 즉시 가격 갱신이 필요할 때 호출
+     */
+    invalidateCache(): void;
     private fetchUniswapPrice;
     private fetchChainlinkPrice;
     getFeeRate(tttPriceUsd: bigint): {
@@ -57,22 +61,4 @@ export declare class DynamicFeeEngine {
     calculateMintFee(tier: string, tickCount?: number, feeToken?: string, feeTokenAddress?: string): Promise<FeeCalculation>;
     calculateBurnFee(tier: string, tickCount?: number, feeToken?: string, feeTokenAddress?: string): Promise<FeeCalculation>;
     calculateEmergencyMintFee(tier: string, tickCount?: number): Promise<FeeCalculation>;
-}
-export declare class AutoBalancer {
-    private feeEngine;
-    private minBalance;
-    private maxMintPerHour;
-    private mintedThisHour;
-    private hourStart;
-    constructor(config: {
-        feeEngine: DynamicFeeEngine;
-        minBalance: bigint;
-        maxMintPerHour: bigint;
-    });
-    checkAndReplenish(currentBalance: bigint, tier: string, ticksNeeded: number): Promise<{
-        action: "none" | "mint" | "market_buy" | "mint_and_buy";
-        mintAmount: bigint;
-        buyAmount: bigint;
-        fee: FeeCalculation | null;
-    }>;
 }

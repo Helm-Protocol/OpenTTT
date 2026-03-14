@@ -14,18 +14,20 @@ class UniswapV4Hook {
     minTTTBalance;
     swapFeeTTT;
     tttContract = null;
+    feeCollector;
     stats = {
         totalSwaps: 0,
         totalFeesCollected: 0n,
         lastSwapTimestamp: 0,
         failedBurns: 0
     };
-    constructor(evmConnector, hookAddress, tttTokenAddress, minTTTBalance = ethers_1.ethers.parseEther("1.0"), swapFeeTTT = ethers_1.ethers.parseEther("0.1")) {
+    constructor(evmConnector, hookAddress, tttTokenAddress, minTTTBalance = ethers_1.ethers.parseEther("1.0"), swapFeeTTT = ethers_1.ethers.parseEther("0.1"), feeCollector) {
         this.evmConnector = evmConnector;
         this.hookAddress = hookAddress;
         this.tttTokenAddress = tttTokenAddress;
         this.minTTTBalance = minTTTBalance;
         this.swapFeeTTT = swapFeeTTT;
+        this.feeCollector = feeCollector;
     }
     /**
      * beforeSwap(params: BeforeSwapParams): Promise<void>
@@ -41,7 +43,8 @@ class UniswapV4Hook {
         }
         // 1. Check TTT balance of the sender
         try {
-            const balance = await this.tttContract.balanceOf(params.sender);
+            // ERC-1155: balanceOf(address, uint256) — tokenId 0 = default TTT token
+            const balance = await this.tttContract.balanceOf(params.sender, 0);
             if (balance < this.minTTTBalance) {
                 throw new Error(`[UniswapV4Hook] Insufficient TTT balance for ${params.sender}. ` +
                     `Required: ${ethers_1.ethers.formatEther(this.minTTTBalance)}, Actual: ${ethers_1.ethers.formatEther(balance)}`);
@@ -62,7 +65,7 @@ class UniswapV4Hook {
      * afterSwap(params: AfterSwapParams): Promise<void>
      * Record results and update statistics after a swap.
      */
-    async afterSwap(params) {
+    async afterSwap(params, burnFeeCalc, signature, nonce, deadline) {
         logger_1.logger.info(`[UniswapV4Hook] afterSwap called for sender: ${params.sender}`);
         // Implement actual fee burn/transfer logic using EVMConnector
         try {
@@ -70,11 +73,19 @@ class UniswapV4Hook {
             // Assuming tier 1 for simplicity in this hook
             await this.evmConnector.burnTTT(this.swapFeeTTT, grgHash, 1);
             logger_1.logger.info(`[UniswapV4Hook] Fee burn executed on-chain for ${ethers_1.ethers.formatEther(this.swapFeeTTT)} TTT`);
+            // Collect protocol burn fee if feeCollector and required params are provided
+            if (this.feeCollector && burnFeeCalc && signature && nonce !== undefined && deadline !== undefined) {
+                try {
+                    await this.feeCollector.collectBurnFee(burnFeeCalc, signature, params.sender, nonce, deadline);
+                }
+                catch (feeError) {
+                    logger_1.logger.error(`[UniswapV4Hook] Burn fee collection failed but burn was successful: ${feeError instanceof Error ? feeError.message : feeError}`);
+                }
+            }
         }
         catch (error) {
             this.stats.failedBurns += 1;
             logger_1.logger.error(`[UniswapV4Hook] Failed to execute fee burn: ${(error instanceof Error ? error.message : String(error))}`);
-            throw new Error(`[UniswapV4Hook] Critical error: Fee burn failed. ${(error instanceof Error ? error.message : String(error))}`);
         }
         this.stats.totalSwaps += 1;
         this.stats.lastSwapTimestamp = Math.floor(Date.now() / 1000);

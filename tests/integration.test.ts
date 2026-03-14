@@ -90,10 +90,12 @@ describe("Full E2E Integration Flow", () => {
       sources: 3,
       stratum: 1,
       confidence: 1,
-      signatures: [
+      sourceReadings: [
         { source: "nist", timestamp: BigInt(Date.now()) * 1000000n, uncertainty: 10 },
         { source: "google", timestamp: BigInt(Date.now()) * 1000000n, uncertainty: 10 }
-      ]
+      ],
+      nonce: "integration-test-nonce-0001",
+      expiresAt: BigInt(Date.now()) + 60_000n
     });
     
     await autoMintEngine.initialize();

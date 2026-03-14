@@ -14,10 +14,17 @@ export declare class AutoMintEngine {
     private isRunning;
     private isProcessing;
     private onMintCallback?;
+    private onFailureCallback?;
+    private onLatencyCallback?;
     private cachedSigner;
+    private consecutiveFailures;
+    private maxConsecutiveFailures;
+    private potSigner;
     constructor(config: AutoMintConfig);
     getEvmConnector(): EVMConnector;
     setOnMint(callback: (result: MintResult) => void): void;
+    setOnFailure(callback: (error: Error) => void): void;
+    setOnLatency(callback: (ms: number) => void): void;
     /**
      * 엔진 초기화 (RPC 연결 및 컨트랙트 설정)
      */

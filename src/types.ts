@@ -2,6 +2,7 @@
 import { Signer, Wallet } from "ethers";
 import { SignerConfig } from "./signer";
 import { NetworkConfig } from "./networks";
+import { PotSignature } from "./pot_signer";
 
 export type TierType = "T0_epoch" | "T1_block" | "T2_slot" | "T3_micro";
 
@@ -160,5 +161,10 @@ export interface ProofOfTime {
   sources: number;
   stratum: number;
   confidence: number;
-  signatures: { source: string; timestamp: bigint; uncertainty: number }[];
+  sourceReadings: { source: string; timestamp: bigint; uncertainty: number }[];
+  nonce: string;        // crypto random hex — replay protection
+  expiresAt: bigint;    // unix timestamp (ms) — PoT validity window
+  issuerSignature?: PotSignature;  // Ed25519 signature from the issuing node (non-repudiation)
 }
+
+export type { PotSignature } from "./pot_signer";

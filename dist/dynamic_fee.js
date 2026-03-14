@@ -3,7 +3,7 @@
 // TTT 시장가에 연동되어 자동으로 tick 비용 조정
 // DEX 운영자는 tier만 설정 → 나머지 SDK가 자동 처리
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AutoBalancer = exports.DynamicFeeEngine = exports.FEE_TIERS = exports.TIER_USD_MICRO = void 0;
+exports.DynamicFeeEngine = exports.FEE_TIERS = exports.TIER_USD_MICRO = void 0;
 const ethers_1 = require("ethers");
 const logger_1 = require("./logger");
 // Tier별 USD 목표 비용 (Scale: 1e6)
@@ -74,6 +74,13 @@ class DynamicFeeEngine {
             logger_1.logger.warn(`[DynamicFee] Price fetch failed, using fallback`);
             return this.config.fallbackPriceUsd;
         }
+    }
+    /**
+     * 캐시 강제 무효화 — 외부에서 즉시 가격 갱신이 필요할 때 호출
+     */
+    invalidateCache() {
+        this.priceCache = null;
+        logger_1.logger.info(`[DynamicFee] Price cache invalidated`);
     }
     async fetchUniswapPrice() {
         if (!this.provider || !this.config.poolAddress)
@@ -194,44 +201,3 @@ class DynamicFeeEngine {
     }
 }
 exports.DynamicFeeEngine = DynamicFeeEngine;
-class AutoBalancer {
-    feeEngine;
-    minBalance;
-    maxMintPerHour;
-    mintedThisHour = 0n;
-    hourStart = Date.now();
-    constructor(config) {
-        this.feeEngine = config.feeEngine;
-        this.minBalance = config.minBalance;
-        this.maxMintPerHour = config.maxMintPerHour;
-    }
-    async checkAndReplenish(currentBalance, tier, ticksNeeded) {
-        const now = Date.now();
-        if (now - this.hourStart > 3600000) {
-            this.mintedThisHour = 0n;
-            this.hourStart = now;
-        }
-        const fee = await this.feeEngine.calculateMintFee(tier, ticksNeeded);
-        const needed = fee.tttAmount;
-        if (currentBalance >= needed + this.minBalance) {
-            return { action: "none", mintAmount: 0n, buyAmount: 0n, fee: null };
-        }
-        const deficit = needed + this.minBalance - currentBalance;
-        const remainingMintCapacity = this.maxMintPerHour - this.mintedThisHour;
-        if (deficit <= remainingMintCapacity) {
-            this.mintedThisHour += deficit;
-            const emergencyFee = await this.feeEngine.calculateEmergencyMintFee(tier, ticksNeeded);
-            return { action: "mint", mintAmount: deficit, buyAmount: 0n, fee: emergencyFee };
-        }
-        else if (remainingMintCapacity > 0n) {
-            const buyDeficit = deficit - remainingMintCapacity;
-            this.mintedThisHour += remainingMintCapacity;
-            const emergencyFee = await this.feeEngine.calculateEmergencyMintFee(tier, ticksNeeded);
-            return { action: "mint_and_buy", mintAmount: remainingMintCapacity, buyAmount: buyDeficit, fee: emergencyFee };
-        }
-        else {
-            return { action: "market_buy", mintAmount: 0n, buyAmount: deficit, fee };
-        }
-    }
-}
-exports.AutoBalancer = AutoBalancer;

@@ -7,6 +7,7 @@ const time_synthesis_1 = require("./time_synthesis");
 const dynamic_fee_1 = require("./dynamic_fee");
 const evm_connector_1 = require("./evm_connector");
 const protocol_fee_1 = require("./protocol_fee");
+const pot_signer_1 = require("./pot_signer");
 const types_1 = require("./types");
 const logger_1 = require("./logger");
 const errors_1 = require("./errors");
@@ -24,24 +25,37 @@ class AutoMintEngine {
     isRunning = false;
     isProcessing = false;
     onMintCallback;
+    onFailureCallback;
+    onLatencyCallback;
     cachedSigner = null;
+    consecutiveFailures = 0;
+    maxConsecutiveFailures = 5;
+    potSigner = null;
     constructor(config) {
         this.config = config;
         this.timeSynthesis = new time_synthesis_1.TimeSynthesis({ sources: config.timeSources });
         this.feeEngine = new dynamic_fee_1.DynamicFeeEngine({
-            cacheDurationMs: 60000,
+            cacheDurationMs: 5000,
             fallbackPriceUsd: config.fallbackPriceUsd || 10000n,
         });
         this.evmConnector = new evm_connector_1.EVMConnector();
         if (config.signer) {
             this.cachedSigner = config.signer;
         }
+        // Initialize Ed25519 PoT signer for non-repudiation
+        this.potSigner = new pot_signer_1.PotSigner();
     }
     getEvmConnector() {
         return this.evmConnector;
     }
     setOnMint(callback) {
         this.onMintCallback = callback;
+    }
+    setOnFailure(callback) {
+        this.onFailureCallback = callback;
+    }
+    setOnLatency(callback) {
+        this.onLatencyCallback = callback;
     }
     /**
      * 엔진 초기화 (RPC 연결 및 컨트랙트 설정)
@@ -64,6 +78,7 @@ class AutoMintEngine {
             this.evmConnector.attachContract(this.config.contractAddress, tttAbi);
             if (this.config.feeCollectorAddress) {
                 this.feeCollector = new protocol_fee_1.ProtocolFeeCollector(this.config.chainId, this.config.feeCollectorAddress, this.evmConnector, this.config.protocolFeeRecipient);
+                await this.feeCollector.validateChainId();
             }
         }
         catch (error) {
@@ -92,11 +107,26 @@ class AutoMintEngine {
             if (this.isProcessing)
                 return;
             this.isProcessing = true;
+            const tickStart = Date.now();
             try {
                 await this.mintTick();
+                this.consecutiveFailures = 0;
+                // H2: Report latency to TTTClient
+                if (this.onLatencyCallback) {
+                    this.onLatencyCallback(Date.now() - tickStart);
+                }
             }
             catch (error) {
-                logger_1.logger.error(`[AutoMint] Tick execution failed: ${error instanceof Error ? error.message : error}`);
+                this.consecutiveFailures++;
+                // H2: Report failure to TTTClient
+                if (this.onFailureCallback) {
+                    this.onFailureCallback(error instanceof Error ? error : new Error(String(error)));
+                }
+                logger_1.logger.error(`[AutoMint] Tick execution failed (${this.consecutiveFailures}/${this.maxConsecutiveFailures}): ${error instanceof Error ? error.message : error}`);
+                if (this.consecutiveFailures >= this.maxConsecutiveFailures) {
+                    logger_1.logger.error(`[AutoMint] Circuit breaker triggered: ${this.consecutiveFailures} consecutive failures. Stopping engine to prevent DoS.`);
+                    this.stop();
+                }
             }
             finally {
                 this.isProcessing = false;
@@ -136,6 +166,11 @@ class AutoMintEngine {
             throw new errors_1.TTTTimeSynthesisError(`[PoT] Insufficient confidence`, `Calculated confidence ${pot.confidence} is below required 0.5`, `Ensure more NTP sources are reachable or decrease uncertainty.`);
         }
         const potHash = ethers_1.ethers.keccak256(ethers_1.ethers.toUtf8Bytes(JSON.stringify(pot, (key, value) => typeof value === 'bigint' ? value.toString() : value)));
+        // 1-2. Ed25519 issuer signature for non-repudiation
+        if (this.potSigner) {
+            pot.issuerSignature = this.potSigner.signPot(potHash);
+            logger_1.logger.info(`[AutoMint] PoT signed by issuer ${this.potSigner.getPubKeyHex().substring(0, 16)}...`);
+        }
         // 2. tokenId 생성 (keccak256)
         // chainId, poolAddress, timestamp 기반 유니크 ID
         const tokenId = ethers_1.ethers.keccak256(ethers_1.ethers.AbiCoder.defaultAbiCoder().encode(["uint256", "address", "uint64"], [BigInt(this.config.chainId), this.config.poolAddress, synthesized.timestamp]));
@@ -153,8 +188,12 @@ class AutoMintEngine {
         const receipt = await this.evmConnector.mintTTT(recipient, feeCalculation.tttAmount, grgHash, potHash);
         // 5. 수수료 차감/기록 (실제 컨트랙트에서 처리되거나 SDK 레벨에서 추적)
         // W2-3: Actual ProtocolFeeCollector call
+        let actualFeePaid = feeCalculation.protocolFeeUsd;
         if (this.feeCollector && this.config.feeCollectorAddress) {
             try {
+                // NOTE: Single-threaded JS guarantees atomicity between nonce generation,
+                // signing, and collection below. If running multiple AutoMintEngine instances
+                // (e.g., worker_threads or cluster), a separate nonce manager with locking is required.
                 const nonce = BigInt("0x" + (0, crypto_1.randomBytes)(8).toString("hex")); // Cryptographic nonce
                 const deadline = Math.floor(Date.now() / 1000) + 3600; // 1 hour validity
                 const signature = await this.signFeeMessage(feeCalculation, nonce, deadline);
@@ -163,16 +202,18 @@ class AutoMintEngine {
             }
             catch (feeError) {
                 logger_1.logger.error(`[AutoMint] Fee collection failed but mint was successful: ${feeError instanceof Error ? feeError.message : feeError}`);
+                // Reset to 0 so downstream (onMint callback, ledger) does not record a fee that was never collected
+                actualFeePaid = 0n;
             }
         }
-        logger_1.logger.info(`[AutoMint] Mint success: tx=${receipt.hash}, feePaid=${feeCalculation.protocolFeeUsd} (USDC eq)`);
+        logger_1.logger.info(`[AutoMint] Mint success: tx=${receipt.hash}, feePaid=${actualFeePaid} (USDC eq)`);
         if (this.onMintCallback) {
             this.onMintCallback({
                 tokenId: tokenId,
                 grgHash: grgHash,
                 timestamp: synthesized.timestamp,
                 txHash: receipt.hash,
-                protocolFeePaid: feeCalculation.protocolFeeUsd,
+                protocolFeePaid: actualFeePaid,
                 proofOfTime: pot
             });
         }
