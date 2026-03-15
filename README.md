@@ -390,4 +390,13 @@ Copyright 2026 Helm Protocol.
 
 ---
 
+## Learn More
+
+- [IETF Draft: draft-helmprotocol-tttps-00](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) — TTTPS Protocol Specification
+- [Yellow Paper](https://github.com/Helm-Protocol/OpenTTT/blob/main/YELLOW_PAPER.md) — Technical Deep Dive
+- [MCP Server](https://github.com/Helm-Protocol/OpenTTT/tree/main/mcp) — AI Agent Integration (`@helm-protocol/ttt-mcp`)
+- [Subgraph (The Graph)](https://api.studio.thegraph.com/query/1744392/openttt-base-sepolia/v0.2.0) — On-chain PoT Data
+- [Base Sepolia Contracts](https://sepolia.basescan.org/address/0xde357135cA493e59680182CDE9E1c6A4dA400811) — TTT ERC-1155
+- [Helm Protocol](https://github.com/Helm-Protocol) — GitHub Organization
+
 [GitHub](https://github.com/Helm-Protocol/OpenTTT) | Built by [Helm Protocol](https://github.com/Helm-Protocol)
