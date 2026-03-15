@@ -43,5 +43,6 @@
   "devDependencies": {
     "@types/node": "^20.11.19",
     "typescript": "^5.3.3"
-  }
+  },
+  "mcpName": "io.github.Helm-Protocol/openttt-pot"
 }
