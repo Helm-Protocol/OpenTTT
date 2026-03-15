@@ -1,5 +1,7 @@
 # @helm-protocol/ttt-mcp
 
+> Reference implementation of [draft-helmprotocol-tttps-00](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) (IETF Experimental)
+
 **MCP Server for OpenTTT — Proof of Time tools for AI agents**
 
 > AI Agent A and Agent B both trigger a payment at the same time.
