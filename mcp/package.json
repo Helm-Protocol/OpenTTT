@@ -1,6 +1,6 @@
 {
   "name": "@helm-protocol/ttt-mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "MCP Server for OpenTTT — Proof of Time tools for AI agents",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -29,8 +29,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Helm-Protocol/OpenTTT"
+    "url": "https://github.com/Helm-Protocol/OpenTTT",
+    "directory": "mcp"
   },
+  "homepage": "https://github.com/Helm-Protocol/OpenTTT/tree/main/mcp#readme",
   "engines": {
     "node": ">=18"
   },
