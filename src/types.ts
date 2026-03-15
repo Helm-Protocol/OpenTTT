@@ -52,7 +52,7 @@ export interface TTTClientConfig {
 
   /**
    * Optional: Overwrite default NTP/GEO-Sat operator sources
-   * Default: ["nist", "kriss", "google"]
+   * Default: ["nist", "google", "cloudflare", "apple"]
    */
   timeSources?: string[];
 

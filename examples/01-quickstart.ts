@@ -9,7 +9,7 @@ import { TTTClient } from '../src';
 async function main() {
   // 1. 클라이언트 생성 (signer만 필수, 나머지는 기본값)
   const client = await TTTClient.forSepolia({
-    signer: { type: 'privateKey', envVar: 'PRIVATE_KEY' }
+    signer: { type: 'privateKey', privateKey: process.env.PRIVATE_KEY! }
   });
 
   // 2. 상태 확인

@@ -7,14 +7,18 @@ describe('TimeSynthesis SDK - Advanced Median & PoT', () => {
     let ts: TimeSynthesis;
 
     beforeEach(() => {
-      ts = new TimeSynthesis({ sources: ['nist', 'kriss', 'google'] });
+      ts = new TimeSynthesis({ sources: ['nist', 'apple', 'google'] });
+    });
+
+    afterEach(() => {
+      ts.close();
     });
 
     it('should calculate median correctly with 3 valid sources', async () => {
       // Mocking getTime for all sources
       const mockReadings: TimeReading[] = [
         { timestamp: 1000n, uncertainty: 5, stratum: 2, source: 'nist' },
-        { timestamp: 1200n, uncertainty: 10, stratum: 1, source: 'kriss' }, // Median
+        { timestamp: 1200n, uncertainty: 10, stratum: 1, source: 'apple' }, // Median
         { timestamp: 900n, uncertainty: 4, stratum: 2, source: 'google' }
       ];
 
@@ -35,7 +39,7 @@ describe('TimeSynthesis SDK - Advanced Median & PoT', () => {
     it('should average 2 sources if 1 fails', async () => {
       const mockReadings: TimeReading[] = [
         { timestamp: 1000n, uncertainty: 5, stratum: 2, source: 'nist' },
-        { timestamp: 1200n, uncertainty: 10, stratum: 1, source: 'kriss' },
+        { timestamp: 1200n, uncertainty: 10, stratum: 1, source: 'apple' },
       ];
 
       ts['sources'][0].getTime = jest.fn().mockResolvedValue(mockReadings[0]);
@@ -77,11 +81,11 @@ describe('TimeSynthesis SDK - Advanced Median & PoT', () => {
 
   describe('Proof of Time (PoT) Generation', () => {
     it('should generate a valid PoT with signatures', async () => {
-      const ts = new TimeSynthesis({ sources: ['nist', 'kriss', 'google'] });
+      const ts = new TimeSynthesis({ sources: ['nist', 'apple', 'google'] });
 
       const mockReadings: TimeReading[] = [
         { timestamp: 1000n, uncertainty: 5, stratum: 2, source: 'nist' },
-        { timestamp: 1050n, uncertainty: 6, stratum: 1, source: 'kriss' },
+        { timestamp: 1050n, uncertainty: 6, stratum: 1, source: 'apple' },
         { timestamp: 1100n, uncertainty: 4, stratum: 2, source: 'google' }
       ];
 
@@ -95,15 +99,23 @@ describe('TimeSynthesis SDK - Advanced Median & PoT', () => {
       expect(pot.sources).toBe(3);
       expect(pot.sourceReadings.length).toBe(3);
       expect(pot.sourceReadings[0].source).toBe('nist');
-      expect(pot.sourceReadings[1].source).toBe('kriss');
+      expect(pot.sourceReadings[1].source).toBe('apple');
       expect(pot.sourceReadings[2].source).toBe('google');
+
+      ts.close();
     });
   });
 
   describe('Live NTP Integration (Network Required)', () => {
+    let ts: TimeSynthesis;
+
+    afterEach(() => {
+      if (ts) ts.close();
+    });
+
     it('should successfully fetch time from at least one public NTP server', async () => {
-      const ts = new TimeSynthesis(); // uses defaults: nist, kriss, google
-      
+      ts = new TimeSynthesis(); // uses defaults: nist, google, cloudflare, apple
+
       try {
         const result = await ts.synthesize();
         expect(result.timestamp).toBeGreaterThan(0n);

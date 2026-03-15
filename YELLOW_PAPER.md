@@ -1,9 +1,9 @@
 # OpenTTT: TLS-Grade Transaction Ordering for Decentralized Exchanges
 
-**Version**: 2.0.0 (Publication Release)
+**Version**: 3.0.0 (Publication Release)
 **Authors**: Arjuna (Jay Shin), Cloco
 **Affiliation**: Kenosian
-**Date**: March 14, 2026
+**Date**: March 15, 2026
 
 ---
 
@@ -14,6 +14,8 @@ Maximal Extractable Value (MEV) remains the single largest structural tax on dec
 ---
 
 ## 1. Introduction
+
+See also: [IETF Draft](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)
 
 ### 1.1 The MEV Problem
 
@@ -59,7 +61,7 @@ Before detailing the TTT protocol mechanics, it is instructive to examine why HT
 
 HTTPS's greatest structural weakness is the centralized trust anchor. The entire system depends on approximately 150 root CAs, any one of which can issue a valid certificate for any domain. The DigiNotar breach demonstrated the fragility of this model: a single compromised CA in the Netherlands issued fraudulent certificates for `*.google.com`, enabling state-level surveillance of Iranian dissidents. Even with CT Logs providing detection capability, the response required six days of human coordination across browser vendors, operating system maintainers, and enterprise IT departments before the compromised CA was fully distrusted.
 
-TTT eliminates this weakness by replacing trust with physics. Timestamp verification derives from atomic clock sources (NIST, KRISS, Google) whose accuracy is a property of physical law, not organizational policy. Ordering compliance is enforced through the Adaptive GRG mechanism (Section 5), which creates a measurable economic gradient: honest builders operate in Turbo mode (~50ms verification) while dishonest builders are automatically switched to Full mode (~127ms verification) at the next block boundary. No committee convenes. No vote is taken. No six-day delay elapses.
+TTT eliminates this weakness by replacing trust with physics. Timestamp verification derives from atomic clock sources (NIST, Google, Apple) whose accuracy is a property of physical law, not organizational policy. Ordering compliance is enforced through the Adaptive GRG mechanism (Section 5), which creates a measurable economic gradient: honest builders operate in Turbo mode (~50ms verification) while dishonest builders are automatically switched to Full mode (~127ms verification) at the next block boundary. No committee convenes. No vote is taken. No six-day delay elapses.
 
 Where Flashbots Protect operates on the CA model--builders are asked to behave honestly, and defection carries social but not immediate economic consequences--TTT operates on the physics model. Correct ordering is not requested; it is the only economically rational strategy. The parallel is precise: HTTPS made plaintext HTTP economically irrational (browsers display warnings, search engines penalize rankings, users abandon sites); TTT makes transaction reordering economically irrational (throughput degrades, revenue declines, competitors operating honestly capture the margin).
 
@@ -74,7 +76,7 @@ The `TimeSynthesis` module queries multiple independent NTP sources concurrently
 | Source | Host | Authority |
 |--------|------|-----------|
 | NIST | `time.nist.gov` | US National Institute of Standards |
-| KRISS | `time.kriss.re.kr` | Korea Research Institute of Standards |
+| Apple | `time.apple.com` | Apple Inc. |
 | Google | `time.google.com` | Google Public NTP |
 
 Each NTP query produces a `TimeReading` containing a nanosecond-precision timestamp, uncertainty bound in milliseconds, and stratum level:
@@ -395,12 +397,12 @@ function collectFee(
 event FeeCollected(address indexed payer, uint256 amount, uint256 nonce);
 ```
 
-### 8.3 Deployed Contracts (Ethereum Sepolia)
+### 8.3 Deployed Contracts (Base Sepolia)
 
 | Contract | Address | Etherscan |
 |----------|---------|-----------|
-| TTT (ERC-1155) | `0xde357135cA493e59680182CDE9E1c6A4dA400811` | [View](https://sepolia.etherscan.io/address/0xde357135cA493e59680182CDE9E1c6A4dA400811) |
-| ProtocolFee | `0xE289337d3a79b22753BDA03510a8b8E4D1040F21` | [View](https://sepolia.etherscan.io/address/0xE289337d3a79b22753BDA03510a8b8E4D1040F21) |
+| TTT (ERC-1155) | `0xde357135cA493e59680182CDE9E1c6A4dA400811` | [View](https://sepolia.basescan.org/address/0xde357135cA493e59680182CDE9E1c6A4dA400811) |
+| ProtocolFee | `0xE289337d3a79b22753BDA03510a8b8E4D1040F21` | [View](https://sepolia.basescan.org/address/0xE289337d3a79b22753BDA03510a8b8E4D1040F21) |
 | Deployer/Treasury | `0x98603D935b6Ba2472a7cb48308e801F7ab6287f7` | |
 
 Base Mainnet deployment is pending. The SDK validates against zero-address contract configurations and throws at initialization if mainnet addresses have not been explicitly provided.
@@ -453,7 +455,7 @@ const ttt = await TTTClient.create({
     usdcAddress: '0x...'
   },
   tier: 'T3_micro',
-  timeSources: ['nist', 'kriss', 'google'],
+  timeSources: ['nist', 'google', 'cloudflare', 'apple'],
   protocolFeeRate: 0.05,
   fallbackPriceUsd: 10000n,
   poolAddress: '0x...',

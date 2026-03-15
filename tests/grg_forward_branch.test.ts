@@ -1,5 +1,5 @@
 // Tests for uncovered branches in grg_forward.ts
-import { GrgForward } from "../src/grg_forward";
+import { GrgForward } from "../vendor/helm-crypto";
 
 describe("GrgForward — uncovered branches", () => {
   const chainId = 1;

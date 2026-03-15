@@ -1,5 +1,20 @@
 # TTT Smart Contract Deployments
 
+## Base Sepolia (2026-03-15)
+
+| Contract | Address |
+|----------|---------|
+| TTT (ERC-1155) | `0xde357135cA493e59680182CDE9E1c6A4dA400811` |
+| ProtocolFee (EIP-712) | `0xE289337d3a79b22753BDA03510a8b8E4D1040F21` |
+| TTTHookSimple (PoC) | `0x8C633b05b833a476925F7d9818da6E215760F2c7` |
+| Deployer/Treasury | `0x98603D935b6Ba2472a7cb48308e801F7ab6287f7` |
+| USDC (Base Sepolia) | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
+
+**Basescan Links:**
+- TTT: https://sepolia.basescan.org/address/0xde357135cA493e59680182CDE9E1c6A4dA400811
+- ProtocolFee: https://sepolia.basescan.org/address/0xE289337d3a79b22753BDA03510a8b8E4D1040F21
+- TTTHookSimple: https://sepolia.basescan.org/address/0x8C633b05b833a476925F7d9818da6E215760F2c7
+
 ## Ethereum Sepolia v3 (2026-03-14) — 4th Audit (PAUSER_ROLE)
 
 | Contract | Address |

@@ -2,11 +2,11 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/home/axcpeter/.tikitaka/sdk/contracts/contracts/TTT.sol": {
-      "lastModificationDate": 1773372554806,
-      "contentHash": "34eb7445f6963988af7e6bc0124658ec",
+      "lastModificationDate": 1773508756283,
+      "contentHash": "b97881a0201796162f6e0a9a03955520",
       "sourceName": "contracts/TTT.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -32,7 +32,7 @@
       "imports": [
         "@openzeppelin/contracts/token/ERC1155/ERC1155.sol",
         "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol",
-        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/access/AccessControl.sol",
         "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
         "@openzeppelin/contracts/utils/Pausable.sol"
       ],
@@ -48,7 +48,7 @@
       "contentHash": "f8b995d60bb9a94c0cebc9e1d603bbcd",
       "sourceName": "@openzeppelin/contracts/token/ERC1155/ERC1155.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -92,7 +92,7 @@
       "contentHash": "d3c790edc9ccf808a17c5a6cd13614fd",
       "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -130,7 +130,7 @@
       "contentHash": "67bfbc07588eb8683b3fd8f6f909563e",
       "sourceName": "@openzeppelin/contracts/utils/Context.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -166,7 +166,7 @@
       "contentHash": "d55f0c144312b11b0c6cb0dca2044e61",
       "sourceName": "@openzeppelin/contracts/utils/Arrays.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -207,7 +207,7 @@
       "contentHash": "bcc76f4747d56c28c40ae272ef3470a6",
       "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC6093.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -245,7 +245,7 @@
       "contentHash": "33e0e83862852391c28e4dd1b8bd9cf2",
       "sourceName": "@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -283,7 +283,7 @@
       "contentHash": "0906d06dca25210d4696dcef6dad2909",
       "sourceName": "@openzeppelin/contracts/utils/introspection/ERC165.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -321,7 +321,7 @@
       "contentHash": "c514e711ead283a7c38933fd7be8aad0",
       "sourceName": "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Utils.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -360,7 +360,7 @@
       "contentHash": "954b62833ba591c2f2ad3354a5048f2a",
       "sourceName": "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -398,7 +398,7 @@
       "contentHash": "0e57405a6f979853cbfeb0df3546c3a3",
       "sourceName": "@openzeppelin/contracts/utils/Comparators.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -434,7 +434,7 @@
       "contentHash": "ee5645e65ecff8756a34d2cb8f18d5e1",
       "sourceName": "@openzeppelin/contracts/utils/SlotDerivation.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -470,7 +470,7 @@
       "contentHash": "e656d64c4ce918f3d13030b91c935134",
       "sourceName": "@openzeppelin/contracts/utils/StorageSlot.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -506,7 +506,7 @@
       "contentHash": "5b8c6935ac52b7494df19d6feb38f5cc",
       "sourceName": "@openzeppelin/contracts/utils/math/Math.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -545,7 +545,7 @@
       "contentHash": "2133dc13536b4a6a98131e431fac59e1",
       "sourceName": "@openzeppelin/contracts/utils/Panic.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -581,7 +581,7 @@
       "contentHash": "f28a38cd37f4225d0a91fb5405dd850f",
       "sourceName": "@openzeppelin/contracts/utils/math/SafeCast.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -617,7 +617,7 @@
       "contentHash": "7074c93b1ea0a122063f26ddd1db1032",
       "sourceName": "@openzeppelin/contracts/utils/introspection/IERC165.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -653,7 +653,7 @@
       "contentHash": "9bb9e05bd69d13dd8c8b098ecb542e6d",
       "sourceName": "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -691,7 +691,7 @@
       "contentHash": "6e5efb502dd6652d12ad15eea2c5bdf4",
       "sourceName": "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -725,11 +725,11 @@
       ]
     },
     "/home/axcpeter/.tikitaka/sdk/contracts/contracts/ProtocolFee.sol": {
-      "lastModificationDate": 1773372337858,
-      "contentHash": "1ce7d17fd6cf71b304b2e1fed03c5e43",
+      "lastModificationDate": 1773482586608,
+      "contentHash": "027e03e9655a6ba853c8e7710328fc17",
       "sourceName": "contracts/ProtocolFee.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -753,15 +753,14 @@
         }
       },
       "imports": [
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
-        "@openzeppelin/contracts/access/Ownable.sol",
         "@openzeppelin/contracts/utils/cryptography/EIP712.sol",
         "@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
-        "@openzeppelin/contracts/utils/Nonces.sol"
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol"
       ],
       "versionPragmas": [
-        "^0.8.20"
+        "^0.8.27"
       ],
       "artifacts": [
         "ProtocolFee"
@@ -772,7 +771,7 @@
       "contentHash": "9261adf6457863de3e9892f51317ec89",
       "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -808,7 +807,7 @@
       "contentHash": "bf8e9c3398d381dc66c5302267927386",
       "sourceName": "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -847,7 +846,7 @@
       "contentHash": "a7fd0f05e36b0d0a21c75340c9c639ec",
       "sourceName": "@openzeppelin/contracts/interfaces/IERC1363.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -886,7 +885,7 @@
       "contentHash": "68620db2da7583d9a4919096ac77f577",
       "sourceName": "@openzeppelin/contracts/interfaces/IERC20.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -922,7 +921,7 @@
       "contentHash": "947853028399b7de34bcc3704ee06e99",
       "sourceName": "@openzeppelin/contracts/interfaces/IERC165.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -958,7 +957,7 @@
       "contentHash": "cb6f7a330ea10e0fbfa2ecb92b65fd56",
       "sourceName": "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -997,7 +996,7 @@
       "contentHash": "0d47b53e10b1985efbb396f937626279",
       "sourceName": "@openzeppelin/contracts/utils/Pausable.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -1035,7 +1034,7 @@
       "contentHash": "b038f3665d2262af34fe6009e3cd78dd",
       "sourceName": "@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -1107,7 +1106,7 @@
       "contentHash": "1351802e3aa364e90aacf03f65b78176",
       "sourceName": "@openzeppelin/contracts/utils/cryptography/EIP712.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -1147,7 +1146,7 @@
       "contentHash": "193937821a0ace7308133b4c68f6b9be",
       "sourceName": "@openzeppelin/contracts/utils/ShortStrings.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -1185,7 +1184,7 @@
       "contentHash": "6e00d2fe4bc0d5f1add753824498bb35",
       "sourceName": "@openzeppelin/contracts/interfaces/IERC5267.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -1221,7 +1220,7 @@
       "contentHash": "fab97298382d4c32182a66ec35255b71",
       "sourceName": "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -1259,7 +1258,7 @@
       "contentHash": "d2fa243e766a193585b7e9bf36898d80",
       "sourceName": "@openzeppelin/contracts/utils/Strings.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -1300,7 +1299,7 @@
       "contentHash": "3b32ea3a40a2d708f61e7161f081ca93",
       "sourceName": "@openzeppelin/contracts/utils/Bytes.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -1338,7 +1337,7 @@
       "contentHash": "ae3528afb8bdb0a7dcfba5b115ee8074",
       "sourceName": "@openzeppelin/contracts/utils/math/SignedMath.sol",
       "solcConfig": {
-        "version": "0.8.24",
+        "version": "0.8.27",
         "settings": {
           "evmVersion": "cancun",
           "optimizer": {
@@ -1369,6 +1368,1298 @@
       ],
       "artifacts": [
         "SignedMath"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol": {
+      "lastModificationDate": 1773319595489,
+      "contentHash": "d15c4d05583536e080f1960ab282772d",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IERC20.sol",
+        "./extensions/IERC20Metadata.sol",
+        "../../utils/Context.sol",
+        "../../interfaces/draft-IERC6093.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ERC20"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol": {
+      "lastModificationDate": 1773319595825,
+      "contentHash": "513778b30d2750f5d2b9b19bbcf748a5",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../IERC20.sol"
+      ],
+      "versionPragmas": [
+        ">=0.6.2"
+      ],
+      "artifacts": [
+        "IERC20Metadata"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/contracts/TTTToken.sol": {
+      "lastModificationDate": 1773471377664,
+      "contentHash": "4e3defbd157755795aadf2713a3f5abd",
+      "sourceName": "contracts/TTTToken.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/Pausable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.27"
+      ],
+      "artifacts": [
+        "TTTToken"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@openzeppelin/contracts/access/AccessControl.sol": {
+      "lastModificationDate": 1773319595076,
+      "contentHash": "798a29e3c30dbd3eda1a67add26571e2",
+      "sourceName": "@openzeppelin/contracts/access/AccessControl.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IAccessControl.sol",
+        "../utils/Context.sol",
+        "../utils/introspection/ERC165.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "AccessControl"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@openzeppelin/contracts/access/IAccessControl.sol": {
+      "lastModificationDate": 1773319595717,
+      "contentHash": "def1e8f7b6cac577cf2600655bf3bdf8",
+      "sourceName": "@openzeppelin/contracts/access/IAccessControl.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.4"
+      ],
+      "artifacts": [
+        "IAccessControl"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/contracts/TTTHook.sol": {
+      "lastModificationDate": 1773550793227,
+      "contentHash": "51dbfef7fd557195c8347e0e6c205068",
+      "sourceName": "contracts/TTTHook.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@uniswap/v4-periphery/src/utils/BaseHook.sol",
+        "@uniswap/v4-core/src/interfaces/IPoolManager.sol",
+        "@uniswap/v4-core/src/libraries/Hooks.sol",
+        "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol",
+        "@uniswap/v4-core/src/types/PoolKey.sol",
+        "@uniswap/v4-core/src/types/BalanceDelta.sol",
+        "@uniswap/v4-core/src/types/BeforeSwapDelta.sol",
+        "@uniswap/v4-core/src/types/PoolOperation.sol",
+        "@openzeppelin/contracts/access/AccessControl.sol",
+        "@openzeppelin/contracts/token/ERC1155/IERC1155.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ITTT",
+        "TTTHook"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-periphery/src/utils/BaseHook.sol": {
+      "lastModificationDate": 1773550715711,
+      "contentHash": "903f95b12c0f38e25c3086c86dd760f2",
+      "sourceName": "@uniswap/v4-periphery/src/utils/BaseHook.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@uniswap/v4-core/src/libraries/Hooks.sol",
+        "@uniswap/v4-core/src/interfaces/IPoolManager.sol",
+        "@uniswap/v4-core/src/interfaces/IHooks.sol",
+        "@uniswap/v4-core/src/types/BalanceDelta.sol",
+        "@uniswap/v4-core/src/types/PoolKey.sol",
+        "@uniswap/v4-core/src/types/BeforeSwapDelta.sol",
+        "../base/ImmutableState.sol",
+        "@uniswap/v4-core/src/types/PoolOperation.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "BaseHook"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/interfaces/IPoolManager.sol": {
+      "lastModificationDate": 1773550713019,
+      "contentHash": "4d5b4ead1c29e3ae8ccfa5e195e655f2",
+      "sourceName": "@uniswap/v4-core/src/interfaces/IPoolManager.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../types/Currency.sol",
+        "../types/PoolKey.sol",
+        "./IHooks.sol",
+        "./external/IERC6909Claims.sol",
+        "./IProtocolFees.sol",
+        "../types/BalanceDelta.sol",
+        "../types/PoolId.sol",
+        "./IExtsload.sol",
+        "./IExttload.sol",
+        "../types/PoolOperation.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "IPoolManager"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/libraries/LPFeeLibrary.sol": {
+      "lastModificationDate": 1773550713055,
+      "contentHash": "9c43170b9172c58fc7e369ef622a3f52",
+      "sourceName": "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./CustomRevert.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "LPFeeLibrary"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/types/PoolKey.sol": {
+      "lastModificationDate": 1773550713162,
+      "contentHash": "398fad21745911bc900a2554be64c61a",
+      "sourceName": "@uniswap/v4-core/src/types/PoolKey.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./Currency.sol",
+        "../interfaces/IHooks.sol",
+        "./PoolId.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": []
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/libraries/Hooks.sol": {
+      "lastModificationDate": 1773550712891,
+      "contentHash": "f52b4bee451bfa37d8d0a245c44adf85",
+      "sourceName": "@uniswap/v4-core/src/libraries/Hooks.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../types/PoolKey.sol",
+        "../interfaces/IHooks.sol",
+        "./SafeCast.sol",
+        "./LPFeeLibrary.sol",
+        "../types/BalanceDelta.sol",
+        "../types/BeforeSwapDelta.sol",
+        "../interfaces/IPoolManager.sol",
+        "../types/PoolOperation.sol",
+        "./ParseBytes.sol",
+        "./CustomRevert.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "Hooks"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/types/BalanceDelta.sol": {
+      "lastModificationDate": 1773550712657,
+      "contentHash": "dec730cf97f8429624545ffff69e7909",
+      "sourceName": "@uniswap/v4-core/src/types/BalanceDelta.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../libraries/SafeCast.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "BalanceDeltaLibrary"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/types/BeforeSwapDelta.sol": {
+      "lastModificationDate": 1773550712668,
+      "contentHash": "ae7541dc512b8b3131e5ef904f047a72",
+      "sourceName": "@uniswap/v4-core/src/types/BeforeSwapDelta.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "BeforeSwapDeltaLibrary"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/types/PoolOperation.sol": {
+      "lastModificationDate": 1773550713179,
+      "contentHash": "4bbbbf40d91eae968af7db2c70578c7c",
+      "sourceName": "@uniswap/v4-core/src/types/PoolOperation.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../types/PoolKey.sol",
+        "../types/BalanceDelta.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": []
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/interfaces/IHooks.sol": {
+      "lastModificationDate": 1773550713005,
+      "contentHash": "f1e10e0c258b5b05da2f768b7a60abc0",
+      "sourceName": "@uniswap/v4-core/src/interfaces/IHooks.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../types/PoolKey.sol",
+        "../types/BalanceDelta.sol",
+        "../types/PoolOperation.sol",
+        "../types/BeforeSwapDelta.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "IHooks"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-periphery/src/base/ImmutableState.sol": {
+      "lastModificationDate": 1773550716240,
+      "contentHash": "7042f1a5ecba4547ee409ead91f636a2",
+      "sourceName": "@uniswap/v4-periphery/src/base/ImmutableState.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@uniswap/v4-core/src/interfaces/IPoolManager.sol",
+        "../interfaces/IImmutableState.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "ImmutableState"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/libraries/SafeCast.sol": {
+      "lastModificationDate": 1773550713212,
+      "contentHash": "7efd56acc85f88254a521ab4e32f1247",
+      "sourceName": "@uniswap/v4-core/src/libraries/SafeCast.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./CustomRevert.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "SafeCast"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/libraries/ParseBytes.sol": {
+      "lastModificationDate": 1773550713147,
+      "contentHash": "4c3500fba937fb3c35ceffdd9da1181a",
+      "sourceName": "@uniswap/v4-core/src/libraries/ParseBytes.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "ParseBytes"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/libraries/CustomRevert.sol": {
+      "lastModificationDate": 1773550712724,
+      "contentHash": "7c5352bf0b75f406d539e91f39d86627",
+      "sourceName": "@uniswap/v4-core/src/libraries/CustomRevert.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "CustomRevert"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/types/Currency.sol": {
+      "lastModificationDate": 1773550712716,
+      "contentHash": "291e0c95e9368cfc77d3f730d602131e",
+      "sourceName": "@uniswap/v4-core/src/types/Currency.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../interfaces/external/IERC20Minimal.sol",
+        "../libraries/CustomRevert.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "CurrencyLibrary"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/types/PoolId.sol": {
+      "lastModificationDate": 1773550713161,
+      "contentHash": "a6e85b945451c582bcf7de3452c782cb",
+      "sourceName": "@uniswap/v4-core/src/types/PoolId.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./PoolKey.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "PoolIdLibrary"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/interfaces/external/IERC20Minimal.sol": {
+      "lastModificationDate": 1773550712941,
+      "contentHash": "673e0abee46eec8a1fe8b7fd9670aeb6",
+      "sourceName": "@uniswap/v4-core/src/interfaces/external/IERC20Minimal.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "IERC20Minimal"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/interfaces/IProtocolFees.sol": {
+      "lastModificationDate": 1773550713022,
+      "contentHash": "0c0f37b4a5a4e73b58020f6af846b977",
+      "sourceName": "@uniswap/v4-core/src/interfaces/IProtocolFees.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../types/Currency.sol",
+        "../types/PoolId.sol",
+        "../types/PoolKey.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "IProtocolFees"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/interfaces/IExtsload.sol": {
+      "lastModificationDate": 1773550712994,
+      "contentHash": "d6736ed46cbb3b677519964ffea3ce9c",
+      "sourceName": "@uniswap/v4-core/src/interfaces/IExtsload.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "IExtsload"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/interfaces/IExttload.sol": {
+      "lastModificationDate": 1773550712997,
+      "contentHash": "c565abf89714dff14e9d67c9d72d028b",
+      "sourceName": "@uniswap/v4-core/src/interfaces/IExttload.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "IExttload"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/interfaces/external/IERC6909Claims.sol": {
+      "lastModificationDate": 1773550712957,
+      "contentHash": "4fc5d7c51f35f6a84ebffdfb9015a66d",
+      "sourceName": "@uniswap/v4-core/src/interfaces/external/IERC6909Claims.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "IERC6909Claims"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-periphery/src/interfaces/IImmutableState.sol": {
+      "lastModificationDate": 1773550716237,
+      "contentHash": "567fc9a99078de8bc375eb41b9d024af",
+      "sourceName": "@uniswap/v4-periphery/src/interfaces/IImmutableState.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@uniswap/v4-core/src/interfaces/IPoolManager.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "IImmutableState"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/contracts/TTTHookSimple.sol": {
+      "lastModificationDate": 1773552160346,
+      "contentHash": "a41e145a8c889a8b24340cbf4d903c39",
+      "sourceName": "contracts/TTTHookSimple.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/AccessControl.sol",
+        "@openzeppelin/contracts/token/ERC1155/IERC1155.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "TTTHookSimple"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/contracts/PoolHelper.sol": {
+      "lastModificationDate": 1773555834131,
+      "contentHash": "57b51916e31c8805ac69e2d1d0562dd0",
+      "sourceName": "contracts/PoolHelper.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@uniswap/v4-core/src/interfaces/IPoolManager.sol",
+        "@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol",
+        "@uniswap/v4-core/src/types/PoolKey.sol",
+        "@uniswap/v4-core/src/types/Currency.sol",
+        "@uniswap/v4-core/src/types/BalanceDelta.sol",
+        "@uniswap/v4-core/src/types/PoolOperation.sol",
+        "@uniswap/v4-core/src/libraries/TickMath.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.27"
+      ],
+      "artifacts": [
+        "PoolHelper"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/libraries/TickMath.sol": {
+      "lastModificationDate": 1773550713369,
+      "contentHash": "5a64ebeb2ad0d4d53dbfadab198190ea",
+      "sourceName": "@uniswap/v4-core/src/libraries/TickMath.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./BitMath.sol",
+        "./CustomRevert.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "TickMath"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol": {
+      "lastModificationDate": 1773550713026,
+      "contentHash": "43f66660291be4d6aad9bdcc895462ba",
+      "sourceName": "@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "IUnlockCallback"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/node_modules/@uniswap/v4-core/src/libraries/BitMath.sol": {
+      "lastModificationDate": 1773550712671,
+      "contentHash": "633655f1ca090751fa0071b6ff5cae08",
+      "sourceName": "@uniswap/v4-core/src/libraries/BitMath.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "BitMath"
+      ]
+    },
+    "/home/axcpeter/.tikitaka/sdk/contracts/contracts/TestTTT.sol": {
+      "lastModificationDate": 1773555792428,
+      "contentHash": "18c5b7a801d7157181537c2d4c978a9c",
+      "sourceName": "contracts/TestTTT.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "cancun",
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.27"
+      ],
+      "artifacts": [
+        "TestTTT"
       ]
     }
   }

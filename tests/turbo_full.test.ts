@@ -1,7 +1,7 @@
 // sdk/tests/turbo_full.test.ts — Turbo/Full Adaptive Switch Tests
 
 import { AdaptiveSwitch, AdaptiveMode, Block, TTTRecord } from "../src/adaptive_switch";
-import { GrgForward } from "../src/grg_forward";
+import { GrgForward } from "../vendor/helm-crypto";
 
 describe("AdaptiveSwitch: Turbo/Full Mechanism", () => {
   const mockData = new Uint8Array(12).fill(1);

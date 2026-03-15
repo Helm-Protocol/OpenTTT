@@ -1,0 +1,48 @@
+Business Source License 1.1
+
+Parameters
+
+Licensor:           Helm Protocol Foundation
+Licensed Work:      TlsTimeToken SDK v0.1.0 (OpenTTT)
+Additional Use
+Grant:              Non-production evaluation and testing.
+Change Date:        March 14, 2030
+Change License:     Apache License, Version 2.0
+
+1.  Grant of License. Licensor hereby grants you a world-wide, royalty-free,
+    non-exclusive, non-sublicensable, non-transferable license to use the
+    Licensed Work, subject to the conditions set forth in this License.
+
+2.  Conditions. You may use the Licensed Work for any purpose, except for
+    Commercial Use.
+
+3.  Commercial Use. Commercial Use means any use of the Licensed Work that is
+    intended for or directed toward commercial advantage or monetary
+    compensation.
+
+4.  Change. On the Change Date, this License shall terminate and the Licensor
+    hereby grants you a license to the Licensed Work under the Change License.
+
+5.  Intellectual Property. This License does not grant you any rights in the
+    Intellectual Property of the Licensor, except for the license to use the
+    Licensed Work as set forth in Section 1.
+
+6.  Termination. This License shall terminate automatically if you fail to
+    comply with any of its terms and conditions.
+
+7.  Disclaimer of Warranty. THE LICENSED WORK IS PROVIDED "AS IS", WITHOUT
+    WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+    WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+    CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    LICENSED WORK OR THE USE OR OTHER DEALINGS IN THE LICENSED WORK.
+
+8.  Limitation of Liability. IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+    CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+    LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+    OUT OF THE USE OF THE LICENSED WORK, EVEN IF ADVISED OF THE POSSIBILITY OF
+    SUCH DAMAGE.

@@ -1,6 +1,5 @@
 // Tests for uncovered branches in grg_inverse.ts
-import { GrgInverse } from "../src/grg_inverse";
-import { GrgForward } from "../src/grg_forward";
+import { GrgInverse, GrgForward } from "../vendor/helm-crypto";
 
 describe("GrgInverse — uncovered branches", () => {
   const chainId = 1;

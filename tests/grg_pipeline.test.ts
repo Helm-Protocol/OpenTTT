@@ -1,4 +1,4 @@
-import { GrgPipeline } from "../src/grg_pipeline";
+import { GrgPipeline } from "../vendor/helm-crypto";
 
 const testChainId = 1;
 const testPoolAddress = "0x1234567890123456789012345678901234567890";

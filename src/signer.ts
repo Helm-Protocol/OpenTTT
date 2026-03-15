@@ -1,5 +1,5 @@
 import { Signer, Wallet, isHexString, AbstractSigner, TransactionRequest, resolveProperties, Transaction, Signature, getAddress, computeAddress, hashMessage, keccak256, TypedDataDomain, TypedDataField, TypedDataEncoder, recoverAddress } from "ethers";
-import { TTTSignerError } from "./errors";
+import { TTTSignerError, ERROR_CODES } from "./errors";
 
 /**
  * Supported signer types in TTT SDK
@@ -312,10 +312,10 @@ export async function createSigner(config: SignerConfig): Promise<TTTAbstractSig
       if (!key && config.envVar) {
         key = process.env[config.envVar];
       }
-      if (!key) throw new TTTSignerError("[Signer] Private key missing", `Neither 'key' nor env var '${config.envVar}' was provided`, "Set the environment variable or provide the key directly in config.");
+      if (!key) throw new TTTSignerError(ERROR_CODES.SIGNER_MISSING_KEY, "[Signer] Private key missing", `Neither 'key' nor env var '${config.envVar}' was provided`, "Set the environment variable or provide the key directly in config.");
       
       if (!key.startsWith('0x')) key = '0x' + key;
-      if (!isHexString(key, 32)) throw new TTTSignerError("[Signer] Invalid private key format", "Expected 0x + 64 hex characters", "Provide a valid 32-byte hex private key.");
+      if (!isHexString(key, 32)) throw new TTTSignerError(ERROR_CODES.SIGNER_INVALID_KEY_FORMAT, "[Signer] Invalid private key format", "Expected 0x + 64 hex characters", "Provide a valid 32-byte hex private key.");
       
       const wallet = new Wallet(key);
       return new PrivateKeySigner(wallet);
@@ -342,7 +342,7 @@ export async function createSigner(config: SignerConfig): Promise<TTTAbstractSig
     }
 
     case 'privy': {
-      throw new TTTSignerError("[Signer] Privy signer is not yet implemented. Use 'privateKey' or 'turnkey' instead.", "Privy embedded wallet support is planned but not available in this release.", "Use { type: 'privateKey', key: '0x...' } or { type: 'turnkey', ... } as your signer config.");
+      throw new TTTSignerError(ERROR_CODES.SIGNER_PRIVY_NOT_IMPLEMENTED, "[Signer] Privy signer is not yet implemented. Use 'privateKey' or 'turnkey' instead.", "Privy embedded wallet support is planned but not available in this release.", "Use { type: 'privateKey', key: '0x...' } or { type: 'turnkey', ... } as your signer config.");
     }
 
     case 'kms': {
@@ -354,11 +354,11 @@ export async function createSigner(config: SignerConfig): Promise<TTTAbstractSig
           const awsSigner = new AWSKMSEthersSigner(client, config.keyId);
           return new KMSSigner(awsSigner);
         } catch (e) {
-          throw new TTTSignerError("[Signer] AWS KMS initialization failed", (e as Error).message, "Ensure @aws-sdk/client-kms is installed and credentials are configured.");
+          throw new TTTSignerError(ERROR_CODES.SIGNER_KMS_AWS_INIT_FAILED, "[Signer] AWS KMS initialization failed", (e as Error).message, "Ensure @aws-sdk/client-kms is installed and credentials are configured.");
         }
       } else if (config.provider === 'gcp') {
         if (!config.projectId || !config.locationId || !config.keyRingId || !config.keyVersionId) {
-          throw new TTTSignerError("[Signer] GCP KMS missing required fields", `projectId=${config.projectId}, locationId=${config.locationId}, keyRingId=${config.keyRingId}, keyVersionId=${config.keyVersionId}`, "Provide all required GCP KMS fields: projectId, locationId, keyRingId, keyVersionId.");
+          throw new TTTSignerError(ERROR_CODES.SIGNER_KMS_GCP_MISSING_FIELDS, "[Signer] GCP KMS missing required fields", `projectId=${config.projectId}, locationId=${config.locationId}, keyRingId=${config.keyRingId}, keyVersionId=${config.keyVersionId}`, "Provide all required GCP KMS fields: projectId, locationId, keyRingId, keyVersionId.");
         }
         try {
           // @ts-ignore
@@ -374,14 +374,14 @@ export async function createSigner(config: SignerConfig): Promise<TTTAbstractSig
           const gcpSigner = new GCPKMSEthersSigner(client, name);
           return new KMSSigner(gcpSigner);
         } catch (e) {
-          throw new TTTSignerError("[Signer] GCP KMS initialization failed", (e as Error).message, "Ensure @google-cloud/kms is installed and application default credentials are set.");
+          throw new TTTSignerError(ERROR_CODES.SIGNER_KMS_GCP_INIT_FAILED, "[Signer] GCP KMS initialization failed", (e as Error).message, "Ensure @google-cloud/kms is installed and application default credentials are set.");
         }
       }
-      throw new TTTSignerError("[Signer] Unsupported KMS provider", `Provider: ${config.provider}`, "Use 'aws' or 'gcp'.");
+      throw new TTTSignerError(ERROR_CODES.SIGNER_KMS_UNSUPPORTED_PROVIDER, "[Signer] Unsupported KMS provider", `Provider: ${config.provider}`, "Use 'aws' or 'gcp'.");
     }
 
     default:
       // @ts-ignore
-      throw new TTTSignerError(`[Signer] Unsupported signer type`, `Type: ${(config as any).type}`, "Provide a supported signer type: privateKey, turnkey, privy, kms.");
+      throw new TTTSignerError(ERROR_CODES.SIGNER_UNSUPPORTED_TYPE, `[Signer] Unsupported signer type`, `Type: ${(config as any).type}`, "Provide a supported signer type: privateKey, turnkey, privy, kms.");
   }
 }

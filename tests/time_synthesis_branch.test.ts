@@ -33,7 +33,7 @@ describe("TimeSynthesis — uncovered branches", () => {
       expect(ts["sources"][0].name).toBe("cloudflare");
     });
 
-    test("default sources are nist, kriss, google, cloudflare", () => {
+    test("default sources are nist, google, cloudflare, apple", () => {
       const ts = new TimeSynthesis();
       expect(ts["sources"].length).toBe(4);
     });

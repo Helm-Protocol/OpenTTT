@@ -105,8 +105,8 @@ describe("DynamicFeeEngine — uncovered branches", () => {
   test("TIER_USD_MICRO has expected values", () => {
     expect(TIER_USD_MICRO.T0_epoch).toBe(1000n);
     expect(TIER_USD_MICRO.T1_block).toBe(10000n);
-    expect(TIER_USD_MICRO.T2_slot).toBe(240000n);
-    expect(TIER_USD_MICRO.T3_micro).toBe(12000000n);
+    expect(TIER_USD_MICRO.T2_slot).toBe(50000n);    // $0.05 — 감사 수정
+    expect(TIER_USD_MICRO.T3_micro).toBe(100000n);  // $0.10 — 감사 수정
   });
 
   test("FEE_TIERS structure is correct", () => {

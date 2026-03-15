@@ -1,0 +1,46 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: TTT
+    network: base-sepolia
+    source:
+      address: "0xde357135cA493e59680182CDE9E1c6A4dA400811"
+      abi: TTT
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - PoTAnchor
+      abis:
+        - name: TTT
+          file: ../contracts/artifacts/contracts/TTT.sol/TTT.json
+      eventHandlers:
+        - event: PoTAnchored(indexed uint256,bytes32,bytes32,uint256)
+          handler: handlePoTAnchored
+      file: ./src/mapping.ts
+  - kind: ethereum
+    name: TTTHook
+    network: base-sepolia
+    source:
+      address: "0x8C633b05b833a476925F7d9818da6E215760F2c7"
+      abi: TTTHook
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - SwapVerification
+        - DailyStats
+        - HourlyStats
+      abis:
+        - name: TTTHook
+          file: ./abis/TTTHook.json
+      eventHandlers:
+        - event: SwapVerified(indexed address,indexed bytes32,indexed address,string,uint256,bytes32)
+          handler: handleSwapVerified
+      file: ./src/mapping.ts
