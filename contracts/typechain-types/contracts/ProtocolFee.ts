@@ -28,11 +28,13 @@ export interface ProtocolFeeInterface extends Interface {
     nameOrSignature:
       | "collectFee"
       | "eip712Domain"
+      | "feeRecipient"
+      | "getDomainSeparator"
+      | "getNonce"
       | "nonces"
       | "owner"
-      | "protocolFeeRecipient"
       | "renounceOwnership"
-      | "setProtocolFeeRecipient"
+      | "setFeeRecipient"
       | "transferOwnership"
   ): FunctionFragment;
 
@@ -40,6 +42,7 @@ export interface ProtocolFeeInterface extends Interface {
     nameOrSignatureOrTopic:
       | "EIP712DomainChanged"
       | "FeeCollected"
+      | "FeeRecipientUpdated"
       | "OwnershipTransferred"
   ): EventFragment;
 
@@ -51,18 +54,26 @@ export interface ProtocolFeeInterface extends Interface {
     functionFragment: "eip712Domain",
     values?: undefined
   ): string;
-  encodeFunctionData(functionFragment: "nonces", values: [AddressLike]): string;
-  encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
-    functionFragment: "protocolFeeRecipient",
+    functionFragment: "feeRecipient",
     values?: undefined
   ): string;
+  encodeFunctionData(
+    functionFragment: "getDomainSeparator",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getNonce",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(functionFragment: "nonces", values: [AddressLike]): string;
+  encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "renounceOwnership",
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "setProtocolFeeRecipient",
+    functionFragment: "setFeeRecipient",
     values: [AddressLike]
   ): string;
   encodeFunctionData(
@@ -75,18 +86,23 @@ export interface ProtocolFeeInterface extends Interface {
     functionFragment: "eip712Domain",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "nonces", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "protocolFeeRecipient",
+    functionFragment: "feeRecipient",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "getDomainSeparator",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "getNonce", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "nonces", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "setProtocolFeeRecipient",
+    functionFragment: "setFeeRecipient",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -108,14 +124,37 @@ export namespace EIP712DomainChangedEvent {
 export namespace FeeCollectedEvent {
   export type InputTuple = [
     payer: AddressLike,
+    token: AddressLike,
     amount: BigNumberish,
     nonce: BigNumberish
   ];
-  export type OutputTuple = [payer: string, amount: bigint, nonce: bigint];
+  export type OutputTuple = [
+    payer: string,
+    token: string,
+    amount: bigint,
+    nonce: bigint
+  ];
   export interface OutputObject {
     payer: string;
+    token: string;
     amount: bigint;
     nonce: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace FeeRecipientUpdatedEvent {
+  export type InputTuple = [
+    oldRecipient: AddressLike,
+    newRecipient: AddressLike
+  ];
+  export type OutputTuple = [oldRecipient: string, newRecipient: string];
+  export interface OutputObject {
+    oldRecipient: string;
+    newRecipient: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -207,16 +246,20 @@ export interface ProtocolFee extends BaseContract {
     "view"
   >;
 
-  nonces: TypedContractMethod<[owner: AddressLike], [bigint], "view">;
+  feeRecipient: TypedContractMethod<[], [string], "view">;
+
+  getDomainSeparator: TypedContractMethod<[], [string], "view">;
+
+  getNonce: TypedContractMethod<[payer: AddressLike], [bigint], "view">;
+
+  nonces: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
 
   owner: TypedContractMethod<[], [string], "view">;
 
-  protocolFeeRecipient: TypedContractMethod<[], [string], "view">;
-
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
-  setProtocolFeeRecipient: TypedContractMethod<
-    [_recipient: AddressLike],
+  setFeeRecipient: TypedContractMethod<
+    [newRecipient: AddressLike],
     [void],
     "nonpayable"
   >;
@@ -262,20 +305,26 @@ export interface ProtocolFee extends BaseContract {
     "view"
   >;
   getFunction(
-    nameOrSignature: "nonces"
-  ): TypedContractMethod<[owner: AddressLike], [bigint], "view">;
-  getFunction(
-    nameOrSignature: "owner"
+    nameOrSignature: "feeRecipient"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "protocolFeeRecipient"
+    nameOrSignature: "getDomainSeparator"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "getNonce"
+  ): TypedContractMethod<[payer: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "nonces"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "setProtocolFeeRecipient"
-  ): TypedContractMethod<[_recipient: AddressLike], [void], "nonpayable">;
+    nameOrSignature: "setFeeRecipient"
+  ): TypedContractMethod<[newRecipient: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
@@ -293,6 +342,13 @@ export interface ProtocolFee extends BaseContract {
     FeeCollectedEvent.InputTuple,
     FeeCollectedEvent.OutputTuple,
     FeeCollectedEvent.OutputObject
+  >;
+  getEvent(
+    key: "FeeRecipientUpdated"
+  ): TypedContractEvent<
+    FeeRecipientUpdatedEvent.InputTuple,
+    FeeRecipientUpdatedEvent.OutputTuple,
+    FeeRecipientUpdatedEvent.OutputObject
   >;
   getEvent(
     key: "OwnershipTransferred"
@@ -314,7 +370,7 @@ export interface ProtocolFee extends BaseContract {
       EIP712DomainChangedEvent.OutputObject
     >;
 
-    "FeeCollected(address,uint256,uint256)": TypedContractEvent<
+    "FeeCollected(address,address,uint256,uint256)": TypedContractEvent<
       FeeCollectedEvent.InputTuple,
       FeeCollectedEvent.OutputTuple,
       FeeCollectedEvent.OutputObject
@@ -323,6 +379,17 @@ export interface ProtocolFee extends BaseContract {
       FeeCollectedEvent.InputTuple,
       FeeCollectedEvent.OutputTuple,
       FeeCollectedEvent.OutputObject
+    >;
+
+    "FeeRecipientUpdated(address,address)": TypedContractEvent<
+      FeeRecipientUpdatedEvent.InputTuple,
+      FeeRecipientUpdatedEvent.OutputTuple,
+      FeeRecipientUpdatedEvent.OutputObject
+    >;
+    FeeRecipientUpdated: TypedContractEvent<
+      FeeRecipientUpdatedEvent.InputTuple,
+      FeeRecipientUpdatedEvent.OutputTuple,
+      FeeRecipientUpdatedEvent.OutputObject
     >;
 
     "OwnershipTransferred(address,address)": TypedContractEvent<

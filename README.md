@@ -1,12 +1,16 @@
 # OpenTTT
 
+> **Reference implementation of [draft-helmprotocol-tttps-00](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)**
+
 **OpenSSL for Transaction Ordering** -- TLS-grade Proof of Time for DeFi.
 
 OpenTTT brings cryptographic time verification to blockchain transaction ordering. Where TLS made HTTP trustworthy, OpenTTT makes transaction sequencing verifiable. No trust assumptions. No gentleman's agreements. Physics.
 
 [![npm](https://img.shields.io/npm/v/openttt)](https://www.npmjs.com/package/openttt)
 [![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-104%20passing%20%C2%B7%2018%20suites-brightgreen)]()
+[![CI](https://github.com/Helm-Protocol/OpenTTT/actions/workflows/ci.yml/badge.svg)](https://github.com/Helm-Protocol/OpenTTT/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Helm-Protocol/OpenTTT/branch/main/graph/badge.svg)](https://codecov.io/gh/Helm-Protocol/OpenTTT)
+[![Tests](https://img.shields.io/badge/tests-365%20passing%20%C2%B7%2031%20suites-brightgreen)]()
 
 ```
 npm install openttt
@@ -23,7 +27,7 @@ Current MEV protection relies on **trust**: builders promise fair ordering, prot
 | **Mechanism** | Social contract (request) | Physical verification (proof) |
 | **Enforcement** | Reputation, exclusion | Economic natural selection |
 | **Bad actors** | Must be identified and removed | Naturally unprofitable, self-selecting out |
-| **Time source** | Block timestamp (miner-controlled) | Multi-source NTP synthesis (NIST, KRISS, Google) |
+| **Time source** | Block timestamp (miner-controlled) | Multi-source NTP synthesis (NIST, Google, Apple) |
 
 **The core insight**: Rollups generate precise timestamps and deliver them to builders with a receipt. The Adaptive GRG pipeline then verifies whether the builder respected that ordering:
 
@@ -91,7 +95,7 @@ const ttt = await TTTClient.create({
   tier: "T1_block",
   contractAddress: "0x...",
   poolAddress: "0x...",
-  timeSources: ["nist", "kriss", "google"],
+  timeSources: ["nist", "google", "cloudflare", "apple"],
   protocolFeeRate: 0.05,
   enableGracefulShutdown: true,
 });
@@ -260,7 +264,7 @@ const ttt = await TTTClient.create({
 ```
 TTTClient (entry point)
 |-- AutoMintEngine         Periodic minting loop
-|   |-- TimeSynthesis      NTP multi-source median synthesis (NIST, KRISS, Google)
+|   |-- TimeSynthesis      NTP multi-source median synthesis (NIST, Google, Apple)
 |   |-- DynamicFeeEngine   Oracle-based pricing
 |   |-- EVMConnector       On-chain mint/burn/events (ethers v6)
 |   '-- ProtocolFee        EIP-712 signed fee collection
@@ -307,7 +311,7 @@ This asymmetry is deliberate: it is hard to earn trust and easy to lose it.
 OpenTTT queries multiple atomic clock-synchronized NTP sources in parallel and produces a median-synthesized timestamp with confidence scoring:
 
 - **NIST** (time.nist.gov) -- US national standard
-- **KRISS** (time.kriss.re.kr) -- Korean national standard
+- **Apple** (time.apple.com) -- Apple global time service
 - **Google** (time.google.com) -- Leap-smeared public NTP
 
 All readings must fall within a stratum-dependent tolerance of the synthesized median (10ms for stratum 1, 25ms for stratum 2, 50ms for stratum 3+), or the Proof of Time is rejected. Single-source operation triggers a degraded-confidence warning.

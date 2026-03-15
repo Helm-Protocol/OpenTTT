@@ -2,7 +2,7 @@
 
 import { TTTBuilder } from "../src/ttt_builder";
 import { AdaptiveMode, AdaptiveSwitch, Block, TTTRecord } from "../src/adaptive_switch";
-import { GrgForward } from "../src/grg_forward";
+import { GrgForward } from "../vendor/helm-crypto";
 import { EVMConnector } from "../src/evm_connector";
 
 describe("TTTBuilder", () => {

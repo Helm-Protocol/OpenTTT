@@ -163,7 +163,7 @@ export class TTTClient extends EventEmitter {
         return addr;
       })(),
       tier: config.tier || "T1_block",
-      timeSources: config.timeSources || ["nist", "kriss", "google"],
+      timeSources: config.timeSources || ["nist", "google", "cloudflare", "apple"],
       protocolFeeRate: config.protocolFeeRate || 0.05,
       protocolFeeRecipient: (() => {
         const addr = config.protocolFeeRecipient;

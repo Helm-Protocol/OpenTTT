@@ -19,7 +19,7 @@ async function main() {
     tier: "T1_block",
     contractAddress: "0x...",
     poolAddress: "0x...",
-    timeSources: ["nist", "kriss", "google"],
+    timeSources: ["nist", "google", "cloudflare", "apple"],
     protocolFeeRate: 0.05,
     enableGracefulShutdown: true,
   });

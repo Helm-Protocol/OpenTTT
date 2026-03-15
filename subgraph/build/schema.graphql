@@ -1,0 +1,40 @@
+type PoTAnchor @entity {
+  id: ID!
+  stratum: BigInt!
+  grgHash: Bytes!
+  potHash: Bytes!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type SwapVerification @entity {
+  id: ID!
+  hook: Bytes!
+  pool: Bytes!
+  sender: Bytes!
+  mode: String!
+  feeAmount: BigInt!
+  potAnchor: PoTAnchor
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type DailyStats @entity {
+  id: ID!
+  date: String!
+  totalSwaps: BigInt!
+  turboCount: BigInt!
+  fullCount: BigInt!
+  turboRatio: BigDecimal!
+  totalFees: BigInt!
+}
+
+type HourlyStats @entity {
+  id: ID!
+  hour: String!
+  totalSwaps: BigInt!
+  turboCount: BigInt!
+  fullCount: BigInt!
+}

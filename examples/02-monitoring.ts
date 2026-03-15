@@ -8,7 +8,7 @@ import { TTTClient } from '../src';
 
 async function main() {
   const client = await TTTClient.forSepolia({
-    signer: { type: 'privateKey', envVar: 'PRIVATE_KEY' }
+    signer: { type: 'privateKey', privateKey: process.env.PRIVATE_KEY! }
   });
 
   // 잔고 최소 임계값 설정 (0.05 ETH 이하면 알림)

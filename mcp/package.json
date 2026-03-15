@@ -1,0 +1,45 @@
+{
+  "name": "@helm-protocol/ttt-mcp",
+  "version": "0.1.2",
+  "description": "MCP Server for OpenTTT — Proof of Time tools for AI agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "ttt-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "npx ts-node index.ts"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "openttt",
+    "proof-of-time",
+    "ai-agent",
+    "defi",
+    "mev",
+    "transaction-ordering"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Helm-Protocol/OpenTTT"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "openttt": "^0.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "typescript": "^5.3.3"
+  }
+}

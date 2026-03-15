@@ -4,10 +4,10 @@ import { DynamicFeeEngine, FeeCalculation } from "./dynamic_fee";
 import { EVMConnector } from "./evm_connector";
 import { ProtocolFeeCollector } from "./protocol_fee";
 import { PotSigner } from "./pot_signer";
-import { GrgForward } from "./grg_forward";
+import { GrgForward } from "../vendor/helm-crypto";
 import { TierIntervals, AutoMintConfig, MintResult } from "./types";
 import { logger } from "./logger";
-import { TTTConfigError, TTTSignerError, TTTTimeSynthesisError, TTTFeeError } from "./errors";
+import { TTTConfigError, TTTSignerError, TTTTimeSynthesisError, TTTFeeError, ERROR_CODES } from "./errors";
 
 /** Maximum retry attempts for RPC-dependent operations within a single tick */
 const MINT_TICK_MAX_RETRIES = 3;
@@ -37,6 +37,8 @@ export class AutoMintEngine {
   private potSigner: PotSigner | null = null;
   /** Monotonic counter appended to tokenId hash to prevent collision when two mints share the same nanosecond timestamp. */
   private mintNonce: bigint = BigInt(Date.now());
+  /** Fire the GRG >50ms performance warning at most once per engine session. */
+  private warnedGrgSlow: boolean = false;
 
   constructor(config: AutoMintConfig) {
     this.config = config;
@@ -81,7 +83,7 @@ export class AutoMintEngine {
   async initialize(): Promise<void> {
     try {
       const signerOrKey = this.config.signer || this.config.privateKey;
-      if (!signerOrKey) throw new TTTConfigError("[AutoMint] Signer or Private Key is required", "Missing both 'signer' and 'privateKey' in config", "Provide a valid ethers.Signer or a private key string in your configuration.");
+      if (!signerOrKey) throw new TTTConfigError(ERROR_CODES.CONFIG_MISSING_SIGNER, "[AutoMint] Signer or Private Key is required", "Missing both 'signer' and 'privateKey' in config", "Provide a valid ethers.Signer or a private key string in your configuration.");
 
       await this.evmConnector.connect(this.config.rpcUrl, signerOrKey);
       await this.feeEngine.connect(this.config.rpcUrl);
@@ -206,13 +208,13 @@ export class AutoMintEngine {
 
     // Fix-12: Integrity check
     if (synthesized.confidence === 0 || synthesized.stratum >= 16) {
-      throw new TTTTimeSynthesisError(`[AutoMint] Synthesis integrity check failed`, `confidence=${synthesized.confidence}, stratum=${synthesized.stratum}`, `Check NTP sources or network connectivity.`);
+      throw new TTTTimeSynthesisError(ERROR_CODES.TIME_SYNTHESIS_INTEGRITY_FAILED, `[AutoMint] Synthesis integrity check failed`, `confidence=${synthesized.confidence}, stratum=${synthesized.stratum}`, `Check NTP sources or network connectivity.`);
     }
 
     // 1-1. PoT Generation & Validation (W1-1)
     const pot = await this.timeSynthesis.generateProofOfTime();
     if (pot.confidence < 0.5) {
-      throw new TTTTimeSynthesisError(`[PoT] Insufficient confidence`, `Calculated confidence ${pot.confidence} is below required 0.5`, `Ensure more NTP sources are reachable or decrease uncertainty.`);
+      throw new TTTTimeSynthesisError(ERROR_CODES.TIME_SYNTHESIS_INSUFFICIENT_CONFIDENCE, `[PoT] Insufficient confidence`, `Calculated confidence ${pot.confidence} is below required 0.5`, `Ensure more NTP sources are reachable or decrease uncertainty.`);
     }
     // Deterministic potHash via ABI.encode — field order is fixed,
     // independent of JS engine key ordering. External verifiers can
@@ -265,7 +267,8 @@ export class AutoMintEngine {
     );
     const grgElapsed = Date.now() - grgStart;
     logger.info(`[AutoMint] GRG pipeline completed in ${grgElapsed}ms`);
-    if (grgElapsed > 50) {
+    if (grgElapsed > 50 && !this.warnedGrgSlow) {
+      this.warnedGrgSlow = true;
       logger.warn(`[AutoMint] GRG pipeline took ${grgElapsed}ms (>50ms threshold). Consider offloading to a Worker Thread for T3_micro tiers.`);
     }
     // On-chain hash = keccak256 of concatenated GRG-encoded shards
@@ -273,7 +276,7 @@ export class AutoMintEngine {
 
     // Recipient address (defaults to signer address)
     if (!this.cachedSigner) {
-      throw new TTTSignerError("[AutoMint] Signer not initialized", "cachedSigner is null", "Initialize the engine before calling mintTick().");
+      throw new TTTSignerError(ERROR_CODES.SIGNER_NOT_INITIALIZED, "[AutoMint] Signer not initialized", "cachedSigner is null", "Initialize the engine before calling mintTick().");
     }
     const recipient = await this.cachedSigner.getAddress();
 
@@ -358,13 +361,13 @@ export class AutoMintEngine {
 
   private async signFeeMessage(feeCalc: FeeCalculation, nonce: bigint, deadline: number): Promise<string> {
     if (!this.cachedSigner) {
-      throw new TTTSignerError("[AutoMint] Signer not initialized", "cachedSigner is null", "Ensure initialize() was called successfully.");
+      throw new TTTSignerError(ERROR_CODES.SIGNER_NOT_INITIALIZED, "[AutoMint] Signer not initialized", "cachedSigner is null", "Ensure initialize() was called successfully.");
     }
 
     // Type casting to handle signTypedData if available on the signer (Wallet supports it)
     const signer = this.cachedSigner as any;
     if (typeof signer.signTypedData !== 'function') {
-      throw new TTTSignerError("[AutoMint] Provided signer does not support signTypedData (EIP-712)", `Signer type ${signer.constructor.name} missing signTypedData`, "Use a Wallet or a signer that implements EIP-712 signTypedData.");
+      throw new TTTSignerError(ERROR_CODES.SIGNER_NO_EIP712, "[AutoMint] Provided signer does not support signTypedData (EIP-712)", `Signer type ${signer.constructor.name} missing signTypedData`, "Use a Wallet or a signer that implements EIP-712 signTypedData.");
     }
     
     const domain = {

@@ -1,5 +1,5 @@
 // sdk/tests/golay.test.ts
-import { golayEncode, golayDecode } from "../src/golay";
+import { golayEncode, golayDecode } from "../vendor/helm-crypto";
 
 describe("Golay(24,12) Extended Codec Re-Surgery Tests", () => {
     

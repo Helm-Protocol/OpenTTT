@@ -5,11 +5,12 @@ import { Buffer } from 'buffer';
 import { keccak256, AbiCoder } from "ethers";
 import { TimeReading, SynthesizedTime, ProofOfTime } from "./types";
 import { logger } from "./logger";
-import { TTTTimeSynthesisError } from "./errors";
+import { TTTTimeSynthesisError, ERROR_CODES } from "./errors";
 
 export interface TimeSource {
   name: string;
   getTime(): Promise<TimeReading>;
+  close?(): void;
 }
 
 const NTP_OFFSET_1900_TO_1970 = 2208988800n;
@@ -123,6 +124,8 @@ export class NTPSource implements TimeSource {
  * - For ±10ns precision, HTTPS is a cross-check only; KTSat is the primary source.
  */
 export class HTTPSTimeSource implements TimeSource {
+  private activeRequests: Set<import('http').ClientRequest> = new Set();
+
   constructor(public name: string, private url: string) {}
 
   async getTime(): Promise<TimeReading> {
@@ -138,9 +141,12 @@ export class HTTPSTimeSource implements TimeSource {
 
       const req = https.request(this.url, { method: 'HEAD' }, (res) => {
         clearTimeout(timeout);
+        // Consume and discard the response to free the socket
+        res.resume();
         const t4 = BigInt(Date.now()) * 1_000_000n;
         const dateHeader = res.headers['date'];
         if (!dateHeader) {
+          this.activeRequests.delete(req);
           reject(new TTTTimeSynthesisError(
             `No Date header from ${this.name}`,
             "HTTPS response missing Date header",
@@ -153,6 +159,7 @@ export class HTTPSTimeSource implements TimeSource {
         const rttMs = Number(rttNs) / 1_000_000;
         // Offset-corrected: server time + half RTT
         const corrected = serverTime + rttNs / 2n;
+        this.activeRequests.delete(req);
         resolve({
           timestamp: corrected,
           uncertainty: rttMs / 2 + 500, // 500ms base uncertainty for HTTP Date (1s resolution)
@@ -162,14 +169,23 @@ export class HTTPSTimeSource implements TimeSource {
       });
       req.on('error', (err) => {
         clearTimeout(timeout);
+        this.activeRequests.delete(req);
         reject(new TTTTimeSynthesisError(
           `HTTPS time error for ${this.name}`,
           err.message,
           "Check TLS connectivity."
         ));
       });
+      this.activeRequests.add(req);
       req.end();
     });
+  }
+
+  close(): void {
+    for (const req of this.activeRequests) {
+      req.destroy();
+    }
+    this.activeRequests.clear();
   }
 }
 
@@ -182,27 +198,27 @@ export class TimeSynthesis {
   private readonly NONCE_TTL_MS = 300_000; // 5 minutes — must exceed PoT expiresAt (60s) to prevent edge-case replay
 
   constructor(config?: { sources?: string[] }) {
-    const sourceNames = config?.sources || ['nist', 'kriss', 'google', 'cloudflare'];
+    const sourceNames = config?.sources || ['nist', 'google', 'cloudflare', 'apple'];
 
     for (const s of sourceNames) {
       if (s === 'nist') {
-        // Primary: HTTPS (TLS-protected), Fallback: NTP (plaintext UDP)
         this.sources.push(new HTTPSTimeSource('nist', 'https://time.nist.gov/'));
-      } else if (s === 'kriss') {
-        // KRISS does not have a public HTTPS time API — NTP only with warning
-        logger.warn('[TimeSynthesis] KRISS source uses plaintext NTP (UDP). Consider replacing with an HTTPS-based source for MITM protection.');
-        this.sources.push(new NTPSource('kriss', 'time.kriss.re.kr'));
       } else if (s === 'google' || s === 'galileo') {
         this.sources.push(new HTTPSTimeSource('google', 'https://time.google.com/'));
       } else if (s === 'cloudflare') {
         this.sources.push(new HTTPSTimeSource('cloudflare', 'https://time.cloudflare.com/'));
+      } else if (s === 'apple') {
+        this.sources.push(new HTTPSTimeSource('apple', 'https://time.apple.com/'));
+      } else if (s === 'kriss') {
+        // Legacy: KRISS NTP (plaintext UDP) — kept for backward compat, not in defaults
+        this.sources.push(new NTPSource('kriss', 'time.kriss.re.kr'));
       }
     }
   }
 
   async getFromSource(name: string): Promise<TimeReading> {
     const source = this.sources.find(s => s.name === name);
-    if (!source) throw new TTTTimeSynthesisError(`Source ${name} not found`, "Requested source name is not configured", "Configure the source in the TimeSynthesis constructor.");
+    if (!source) throw new TTTTimeSynthesisError(ERROR_CODES.TIME_SYNTHESIS_SOURCE_NOT_FOUND, `Source ${name} not found`, "Requested source name is not configured", "Configure the source in the TimeSynthesis constructor.");
     return source.getTime();
   }
 
@@ -220,7 +236,7 @@ export class TimeSynthesis {
     }
 
     if (readings.length === 0) {
-      throw new TTTTimeSynthesisError('[TimeSynthesis] CRITICAL: All NTP sources failed.', "Zero readings returned from all configured NTP sources", "Ensure UDP port 123 is open and NTP servers are reachable.");
+      throw new TTTTimeSynthesisError(ERROR_CODES.TIME_SYNTHESIS_ALL_SOURCES_FAILED, '[TimeSynthesis] CRITICAL: All NTP sources failed.', "Zero readings returned from all configured NTP sources", "Ensure UDP port 123 is open and NTP servers are reachable.");
     }
 
     if (readings.length === 1) {
@@ -274,7 +290,7 @@ export class TimeSynthesis {
     }
 
     if (readings.length === 0) {
-      throw new TTTTimeSynthesisError('[TimeSynthesis] Cannot generate PoT: All NTP sources failed.', "No successful readings from NTP servers.", "Check internet connection and UDP 123 access.");
+      throw new TTTTimeSynthesisError(ERROR_CODES.TIME_SYNTHESIS_POT_ALL_FAILED, '[TimeSynthesis] Cannot generate PoT: All NTP sources failed.', "No successful readings from NTP servers.", "Check internet connection and UDP 123 access.");
     }
 
     readings.sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0));
@@ -322,7 +338,7 @@ export class TimeSynthesis {
 
     // Verification Logic: Ensure all source timestamps are within tolerance of synthesized median
     if (!this.verifyProofOfTime(pot)) {
-      throw new TTTTimeSynthesisError("[PoT] Self-verification failed", "Source readings are too far apart from synthesized median", "Check for high network jitter or malicious NTP spoofing.");
+      throw new TTTTimeSynthesisError(ERROR_CODES.TIME_SYNTHESIS_SELF_VERIFY_FAILED, "[PoT] Self-verification failed", "Source readings are too far apart from synthesized median", "Check for high network jitter or malicious NTP spoofing.");
     }
 
     return pot;
@@ -482,6 +498,19 @@ export class TimeSynthesis {
   /**
    * Deserializes PoT from compact binary format.
    */
+  /**
+   * Closes all sources and clears internal state.
+   * Call this in tests (afterEach/afterAll) to prevent open handle warnings.
+   */
+  close(): void {
+    for (const source of this.sources) {
+      if (typeof source.close === 'function') {
+        source.close();
+      }
+    }
+    this.usedNonces.clear();
+  }
+
   static deserializeFromBinary(buf: Buffer): ProofOfTime {
     let offset = 0;
     const timestamp = buf.readBigUInt64BE(offset); offset += 8;

@@ -48,8 +48,8 @@ export const ETH_SEPOLIA: NetworkConfig = {
 export const BASE_SEPOLIA: NetworkConfig = {
   chainId: 84532,
   rpcUrl: "https://sepolia.base.org",
-  tttAddress: "0x0000000000000000000000000000000000000000",
-  protocolFeeAddress: "0x0000000000000000000000000000000000000000",
+  tttAddress: "0xde357135cA493e59680182CDE9E1c6A4dA400811",
+  protocolFeeAddress: "0xE289337d3a79b22753BDA03510a8b8E4D1040F21",
   usdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
 };
 

@@ -4,7 +4,7 @@
 import { ethers, Contract, JsonRpcProvider, Signer, TransactionReceipt } from "ethers";
 import { TTTRecord } from "./adaptive_switch";
 import { logger } from "./logger";
-import { TTTNetworkError, TTTContractError } from "./errors";
+import { TTTNetworkError, TTTContractError, ERROR_CODES } from "./errors";
 
 export interface VerificationResult {
   valid: boolean;
@@ -46,7 +46,7 @@ export class EVMConnector {
   private async withTimeout<T>(promise: Promise<T>, ms: number = EVMConnector.GAS_TIMEOUT_MS): Promise<T> {
     return Promise.race([
       promise,
-      new Promise<never>((_, reject) => setTimeout(() => reject(new TTTNetworkError(`[EVM] Operation timed out`, `RPC did not respond within ${ms}ms`, `Check your RPC provider status or increase timeout.`)), ms))
+      new Promise<never>((_, reject) => setTimeout(() => reject(new TTTNetworkError(ERROR_CODES.NETWORK_CONNECTION_FAILED, `[EVM] Operation timed out`, `RPC did not respond within ${ms}ms`, `Check your RPC provider status or increase timeout.`)), ms))
     ]);
   }
 
@@ -54,7 +54,7 @@ export class EVMConnector {
    * Connect to an EVM chain using either a private key or a pre-configured signer.
    */
   async connect(rpcUrl: string, signerOrKey: string | Signer): Promise<void> {
-    if (!rpcUrl || typeof rpcUrl !== "string") throw new TTTNetworkError("[EVM] Invalid RPC URL", "The provided RPC URL is empty or not a string", "Pass a valid RPC URL (e.g., https://mainnet.base.org)");
+    if (!rpcUrl || typeof rpcUrl !== "string") throw new TTTNetworkError(ERROR_CODES.NETWORK_INVALID_RPC, "[EVM] Invalid RPC URL", "The provided RPC URL is empty or not a string", "Pass a valid RPC URL (e.g., https://mainnet.base.org)");
 
     this.primaryRpcUrl = rpcUrl;
     this.signerOrKey = signerOrKey;
@@ -63,7 +63,7 @@ export class EVMConnector {
       this.provider = new JsonRpcProvider(rpcUrl);
       if (typeof signerOrKey === "string") {
         if (!signerOrKey.startsWith("0x") || signerOrKey.length !== 66) {
-          throw new TTTContractError("[EVM] Invalid Private Key format", "Private key must be 0x + 64 hex characters", "Provide a valid 32-byte hex private key.");
+          throw new TTTContractError(ERROR_CODES.CONTRACT_INVALID_KEY_FORMAT, "[EVM] Invalid Private Key format", "Private key must be 0x + 64 hex characters", "Provide a valid 32-byte hex private key.");
         }
         this.signer = new ethers.Wallet(signerOrKey, this.provider);
       } else {
@@ -93,7 +93,7 @@ export class EVMConnector {
           continue;
         }
       }
-      throw new TTTNetworkError(`[EVM] Connection failed`, error instanceof Error ? error.message : String(error), `Verify your RPC URL and network connectivity.`);
+      throw new TTTNetworkError(ERROR_CODES.NETWORK_CONNECTION_FAILED, `[EVM] Connection failed`, error instanceof Error ? error.message : String(error), `Verify your RPC URL and network connectivity.`);
     }
   }
 
@@ -101,7 +101,7 @@ export class EVMConnector {
    * Reconnect using stored credentials. Tries primary first, then fallbacks.
    */
   async reconnect(): Promise<void> {
-    if (!this.signerOrKey) throw new TTTNetworkError("[EVM] Cannot reconnect", "No previous connection credentials stored", "Call connect() first.");
+    if (!this.signerOrKey) throw new TTTNetworkError(ERROR_CODES.NETWORK_CANNOT_RECONNECT, "[EVM] Cannot reconnect", "No previous connection credentials stored", "Call connect() first.");
     this.disconnect();
     const allUrls = [this.primaryRpcUrl, ...this.fallbackRpcUrls].filter(Boolean);
     for (let attempt = 0; attempt < Math.min(this.maxReconnectAttempts, allUrls.length); attempt++) {
@@ -123,7 +123,7 @@ export class EVMConnector {
       }
     }
     this.connected = false;
-    throw new TTTNetworkError("[EVM] Reconnection failed", `All ${this.maxReconnectAttempts} attempts exhausted`, "Check RPC provider status and network connectivity.");
+    throw new TTTNetworkError(ERROR_CODES.NETWORK_RECONNECTION_EXHAUSTED, "[EVM] Reconnection failed", `All ${this.maxReconnectAttempts} attempts exhausted`, "Check RPC provider status and network connectivity.");
   }
 
   /**
@@ -161,8 +161,8 @@ export class EVMConnector {
    * Attach the TTT Token contract.
    */
   attachContract(address: string, abi: any[]): void {
-    if (!this.signer) throw new TTTContractError("Not connected to signer", "EVMConnector.connect() must be called first", "Initialize connection before attaching contracts.");
-    if (!address || !ethers.isAddress(address)) throw new TTTContractError(`[EVM] Invalid contract address`, `Address '${address}' is not a valid EVM address`, `Check your config and provide a valid checksummed address.`);
+    if (!this.signer) throw new TTTContractError(ERROR_CODES.CONTRACT_SIGNER_NOT_CONNECTED, "Not connected to signer", "EVMConnector.connect() must be called first", "Initialize connection before attaching contracts.");
+    if (!address || !ethers.isAddress(address)) throw new TTTContractError(ERROR_CODES.CONTRACT_INVALID_ADDRESS, `[EVM] Invalid contract address`, `Address '${address}' is not a valid EVM address`, `Check your config and provide a valid checksummed address.`);
     this.tttContract = new Contract(address, abi, this.signer);
   }
 
@@ -170,8 +170,8 @@ export class EVMConnector {
    * Attach the ProtocolFee contract.
    */
   attachProtocolFeeContract(address: string, abi: any[]): void {
-    if (!this.signer) throw new TTTContractError("Not connected to signer", "EVMConnector.connect() must be called first", "Initialize connection before attaching contracts.");
-    if (!address || !ethers.isAddress(address)) throw new TTTContractError(`[EVM] Invalid contract address`, `Address '${address}' is not a valid EVM address`, `Check your config and provide a valid checksummed address.`);
+    if (!this.signer) throw new TTTContractError(ERROR_CODES.CONTRACT_SIGNER_NOT_CONNECTED, "Not connected to signer", "EVMConnector.connect() must be called first", "Initialize connection before attaching contracts.");
+    if (!address || !ethers.isAddress(address)) throw new TTTContractError(ERROR_CODES.CONTRACT_INVALID_ADDRESS, `[EVM] Invalid contract address`, `Address '${address}' is not a valid EVM address`, `Check your config and provide a valid checksummed address.`);
     this.protocolFeeContract = new Contract(address, abi, this.signer);
   }
 
@@ -179,7 +179,7 @@ export class EVMConnector {
    * Generic TTT Record Submission (Burn)
    */
   async submitTTTRecord(record: TTTRecord, amount: bigint, tier: number): Promise<TransactionReceipt> {
-    if (!this.tttContract) throw new TTTContractError("Contract not attached", "TTT contract instance is null", "Call attachContract() with valid TTT address before burning.");
+    if (!this.tttContract) throw new TTTContractError(ERROR_CODES.CONTRACT_NOT_ATTACHED, "Contract not attached", "TTT contract instance is null", "Call attachContract() with valid TTT address before burning.");
 
     const grgHash = ethers.keccak256(ethers.concat(record.grgPayload));
     
@@ -194,12 +194,12 @@ export class EVMConnector {
       logger.info(`[EVM] TTT Record TX Sent: ${tx.hash}`);
       const receipt = await tx.wait();
       // P2-5: Null check for dropped transactions
-      if (!receipt) throw new TTTNetworkError(`[EVM] Transaction failed`, `Transaction was dropped from mempool or null receipt`, `Check block explorer for tx status.`);
+      if (!receipt) throw new TTTNetworkError(ERROR_CODES.NETWORK_TX_DROPPED, `[EVM] Transaction failed`, `Transaction was dropped from mempool or null receipt`, `Check block explorer for tx status.`);
       return receipt;
     } catch (error) {
       if (error instanceof TTTNetworkError || error instanceof TTTContractError) throw error;
       const reason = this.extractRevertReason(error);
-      throw new TTTContractError(`[EVM] Burn failed`, reason, `Verify your TTT balance and tier parameters.`);
+      throw new TTTContractError(ERROR_CODES.CONTRACT_BURN_FAILED, `[EVM] Burn failed`, reason, `Verify your TTT balance and tier parameters.`);
     }
   }
 
@@ -207,8 +207,8 @@ export class EVMConnector {
    * Mint TTT (Owner only)
    */
   async mintTTT(to: string, amount: bigint, grgHash: string, potHash?: string): Promise<TransactionReceipt> {
-    if (!this.tttContract) throw new TTTContractError("Contract not attached", "TTT contract instance is null", "Call attachContract() before minting.");
-    if (!to || !ethers.isAddress(to)) throw new TTTContractError(`[EVM] Invalid recipient address`, `Address '${to}' is not a valid EVM address`, `Provide a valid destination address.`);
+    if (!this.tttContract) throw new TTTContractError(ERROR_CODES.CONTRACT_NOT_ATTACHED, "Contract not attached", "TTT contract instance is null", "Call attachContract() before minting.");
+    if (!to || !ethers.isAddress(to)) throw new TTTContractError(ERROR_CODES.CONTRACT_INVALID_ADDRESS, `[EVM] Invalid recipient address`, `Address '${to}' is not a valid EVM address`, `Provide a valid destination address.`);
 
     try {
       if (potHash) {
@@ -220,11 +220,11 @@ export class EVMConnector {
         gasLimit: (gasLimit * 120n) / 100n
       });
       const receipt = await tx.wait();
-      if (!receipt) throw new TTTNetworkError(`[EVM] Mint TX dropped`, `Transaction was dropped from mempool`, `Check operator account for nonce collisions.`);
+      if (!receipt) throw new TTTNetworkError(ERROR_CODES.NETWORK_TX_DROPPED, `[EVM] Mint TX dropped`, `Transaction was dropped from mempool`, `Check operator account for nonce collisions.`);
       return receipt;
     } catch (error) {
       const reason = this.extractRevertReason(error);
-      throw new TTTContractError(`[EVM] Mint failed`, reason, `Ensure operator has minter role and sufficient gas.`);
+      throw new TTTContractError(ERROR_CODES.CONTRACT_MINT_FAILED, `[EVM] Mint failed`, reason, `Ensure operator has minter role and sufficient gas.`);
     }
   }
 
@@ -232,16 +232,16 @@ export class EVMConnector {
    * Burn TTT (Simple wrapper)
    */
   async burnTTT(amount: bigint, grgHash: string, tierLevel: number): Promise<{hash: string}> {
-    if (!this.tttContract) throw new TTTContractError("Contract not attached", "TTT contract instance is null", "Call attachContract() before burning.");
+    if (!this.tttContract) throw new TTTContractError(ERROR_CODES.CONTRACT_NOT_ATTACHED, "Contract not attached", "TTT contract instance is null", "Call attachContract() before burning.");
 
     try {
       const tx = await this.tttContract.burn(amount, grgHash, tierLevel);
       const receipt = await tx.wait();
-      if (!receipt) throw new TTTNetworkError(`[EVM] Burn TX dropped`, `Transaction was dropped from mempool`, `Verify account balance.`);
+      if (!receipt) throw new TTTNetworkError(ERROR_CODES.NETWORK_TX_DROPPED, `[EVM] Burn TX dropped`, `Transaction was dropped from mempool`, `Verify account balance.`);
       return { hash: receipt.hash };
     } catch (error) {
       const reason = this.extractRevertReason(error);
-      throw new TTTContractError(`[EVM] Burn failed`, reason, `Check TTT balance.`);
+      throw new TTTContractError(ERROR_CODES.CONTRACT_BURN_FAILED, `[EVM] Burn failed`, reason, `Check TTT balance.`);
     }
   }
 
@@ -249,12 +249,12 @@ export class EVMConnector {
    * Get TTT Balance (ERC-1155)
    */
   async getTTTBalance(user: string, tokenId: bigint): Promise<bigint> {
-    if (!this.tttContract) throw new TTTContractError("Contract not attached", "TTT contract instance is null", "Call attachContract() before querying balance.");
+    if (!this.tttContract) throw new TTTContractError(ERROR_CODES.CONTRACT_NOT_ATTACHED, "Contract not attached", "TTT contract instance is null", "Call attachContract() before querying balance.");
     try {
       return await this.tttContract.balanceOf(user, tokenId);
     } catch (error) {
       const reason = this.extractRevertReason(error);
-      throw new TTTContractError(`[EVM] Balance query failed`, reason, `Check RPC connection and contract address.`);
+      throw new TTTContractError(ERROR_CODES.CONTRACT_BALANCE_QUERY_FAILED, `[EVM] Balance query failed`, reason, `Check RPC connection and contract address.`);
     }
   }
 
@@ -268,8 +268,8 @@ export class EVMConnector {
     amountIn: bigint,
     minAmountOut: bigint
   ): Promise<TransactionReceipt> {
-    if (!this.signer) throw new TTTContractError("Not connected to signer", "Signer is null", "Initialize connection.");
-    if (!routerAddress || !ethers.isAddress(routerAddress)) throw new TTTContractError(`[EVM] Invalid router address`, `Address '${routerAddress}' is invalid`, `Provide valid V4 SwapRouter address.`);
+    if (!this.signer) throw new TTTContractError(ERROR_CODES.CONTRACT_SIGNER_NOT_CONNECTED, "Not connected to signer", "Signer is null", "Initialize connection.");
+    if (!routerAddress || !ethers.isAddress(routerAddress)) throw new TTTContractError(ERROR_CODES.CONTRACT_INVALID_ADDRESS, `[EVM] Invalid router address`, `Address '${routerAddress}' is invalid`, `Provide valid V4 SwapRouter address.`);
 
     logger.info(`[EVM] Swapping ${amountIn} of ${tokenIn} for ${tokenOut} via ${routerAddress}`);
 
@@ -290,12 +290,12 @@ export class EVMConnector {
 
       logger.info(`[EVM] Swap TX Sent: ${tx.hash}`);
       const receipt = await tx.wait();
-      if (!receipt) throw new TTTNetworkError(`[EVM] Swap TX dropped`, `Transaction dropped`, `Check gas price.`);
+      if (!receipt) throw new TTTNetworkError(ERROR_CODES.NETWORK_TX_DROPPED, `[EVM] Swap TX dropped`, `Transaction dropped`, `Check gas price.`);
       return receipt;
     } catch (error) {
       if (error instanceof TTTNetworkError || error instanceof TTTContractError) throw error;
       const reason = this.extractRevertReason(error);
-      throw new TTTContractError(`[EVM] Swap failed`, reason, `Verify slippage and token balances.`);
+      throw new TTTContractError(ERROR_CODES.CONTRACT_SWAP_FAILED, `[EVM] Swap failed`, reason, `Verify slippage and token balances.`);
     }
   }
 
@@ -359,10 +359,10 @@ export class EVMConnector {
    * Verify Block Data
    */
   async verifyBlock(blockNum: number): Promise<VerificationResult> {
-    if (!this.provider) throw new TTTNetworkError("Provider not connected", "RPC provider is null", "Call connect() first.");
+    if (!this.provider) throw new TTTNetworkError(ERROR_CODES.NETWORK_PROVIDER_NOT_CONNECTED, "Provider not connected", "RPC provider is null", "Call connect() first.");
 
     const block = await this.provider.getBlock(blockNum);
-    if (!block) throw new TTTNetworkError(`Block not found`, `RPC returned null for block ${blockNum}`, `Verify if block number exists on chain.`);
+    if (!block) throw new TTTNetworkError(ERROR_CODES.NETWORK_BLOCK_NOT_FOUND, `Block not found`, `RPC returned null for block ${blockNum}`, `Verify if block number exists on chain.`);
 
     return {
       valid: true,
@@ -377,7 +377,7 @@ export class EVMConnector {
    * Get pending transactions for the current provider.
    */
   async getPendingTransactions(): Promise<string[]> {
-    if (!this.provider) throw new TTTNetworkError("Provider not connected", "RPC provider is null", "Call connect() first.");
+    if (!this.provider) throw new TTTNetworkError(ERROR_CODES.NETWORK_PROVIDER_NOT_CONNECTED, "Provider not connected", "RPC provider is null", "Call connect() first.");
     const block = await this.provider.send("eth_getBlockByNumber", ["pending", false]);
     return block ? block.transactions : [];
   }
@@ -386,7 +386,7 @@ export class EVMConnector {
    * Get the provider instance.
    */
   getProvider(): JsonRpcProvider {
-    if (!this.provider) throw new TTTNetworkError("Provider not connected", "RPC provider is null", "Call connect() first.");
+    if (!this.provider) throw new TTTNetworkError(ERROR_CODES.NETWORK_PROVIDER_NOT_CONNECTED, "Provider not connected", "RPC provider is null", "Call connect() first.");
     return this.provider;
   }
 
@@ -394,7 +394,7 @@ export class EVMConnector {
    * Get the signer instance.
    */
   getSigner(): Signer {
-    if (!this.signer) throw new TTTContractError("Signer not connected", "Signer is null", "Call connect() first.");
+    if (!this.signer) throw new TTTContractError(ERROR_CODES.CONTRACT_SIGNER_NOT_CONNECTED, "Signer not connected", "Signer is null", "Call connect() first.");
     return this.signer;
   }
 

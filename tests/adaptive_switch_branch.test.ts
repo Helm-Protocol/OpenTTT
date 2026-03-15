@@ -2,7 +2,7 @@
 // Targets: serialize/deserialize (lines 115-144), penaltyCooldown decrement (line 67),
 // TURBO integrity failure with exponential backoff (lines 53-56)
 import { AdaptiveSwitch, AdaptiveMode, Block, TTTRecord } from "../src/adaptive_switch";
-import { GrgForward } from "../src/grg_forward";
+import { GrgForward } from "../vendor/helm-crypto";
 
 describe("AdaptiveSwitch — uncovered branches", () => {
   const mockData = new Uint8Array(12).fill(1);

@@ -1,6 +1,5 @@
 // sdk/tests/e2e.test.ts — TTT Full Pipeline E2E Test
-import { GrgForward } from "../src/grg_forward";
-import { GrgInverse } from "../src/grg_inverse";
+import { GrgForward, GrgInverse } from "../vendor/helm-crypto";
 import { AdaptiveSwitch, AdaptiveMode, TTTRecord, Block } from "../src/adaptive_switch";
 import { X402Enforcer, SwapDetails } from "../src/x402_enforcer";
 import { DynamicFeeEngine } from "../src/dynamic_fee";

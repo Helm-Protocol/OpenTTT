@@ -58,7 +58,7 @@ Verify your connectivity before committing to on-chain operations:
 ```typescript
 const health = await ttt.getHealth();
 console.log(health.checks);
-// { initialized: true, rpcConnected: true, signerAvailable: true, timeSyncOk: true }
+// { initialized: true, rpcConnected: true, signerAvailable: true, ntpSourcesOk: true }
 ```
 
 ### Step 4 — AdaptiveSwitch (the "aha" moment)
@@ -182,7 +182,7 @@ const evm = new EVMConnector({
 });
 await evm.connect("https://primary-rpc.example.com", process.env.OPERATOR_PK!);
 
-const timeSynth = new TimeSynthesis(["nist", "google", "kriss"]);
+const timeSynth = new TimeSynthesis(["nist", "google", "cloudflare", "apple"]);
 const switcher = new AdaptiveSwitch({ tolerance: 200 });
 const potSigner = PotSigner.createOrLoad("./keys/pot_signer.json");
 
@@ -247,7 +247,7 @@ ProtocolFee (ERC-20 USDC + EIP-712):          0x6b39D96741BB4Ce6283F824CC31c2931
 USDC (Sepolia):                                0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
 ```
 
-Etherscan: [TTT](https://sepolia.etherscan.io/address/0x291b83F605F2dA95cf843d4a53983B413ef3B929) | [ProtocolFee](https://sepolia.etherscan.io/address/0x6b39D96741BB4Ce6283F824CC31c2931c75AEe64)
+Basescan: [TTT](https://sepolia.basescan.org/address/0x291b83F605F2dA95cf843d4a53983B413ef3B929) | [ProtocolFee](https://sepolia.basescan.org/address/0x6b39D96741BB4Ce6283F824CC31c2931c75AEe64)
 
 ---
 
@@ -255,10 +255,10 @@ Etherscan: [TTT](https://sepolia.etherscan.io/address/0x291b83F605F2dA95cf843d4a
 
 | Tier | Interval | Tolerance | Use Case |
 |---|---|---|---|
-| `T0_realtime` | — | 2000ms | Real-time monitoring |
-| `T1_block` | ~12s | 200ms | Block-level ordering (recommended) |
-| `T2_slot` | ~6s | 500ms | Slot-level verification |
-| `T3_finality` | ~15min | 10ms | Finality-level precision |
+| `T0_epoch` | 384,000ms (6.4 min) | 2000ms | Epoch-level monitoring |
+| `T1_block` | 2,000ms (2 sec) | 200ms | Block-level ordering, Base L2 (recommended) |
+| `T2_slot` | 12,000ms (12 sec) | 500ms | Slot-level verification, Ethereum |
+| `T3_micro` | 100ms | 10ms | Micro-level precision, IoT/HFT |
 
 ---
 

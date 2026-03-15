@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
@@ -20,6 +20,7 @@ contract TTT is ERC1155, ERC1155Supply, AccessControl, ReentrancyGuard, Pausable
 
     event TTTMinted(address indexed to, uint256 indexed tokenId, uint256 amount);
     event TTTBurned(address indexed from, uint256 indexed tokenId, uint256 amount, uint256 tier);
+    event PoTAnchored(uint256 indexed stratum, bytes32 grgHash, bytes32 potHash, uint256 timestamp);
 
     constructor() ERC1155("https://api.helm.network/ttt/{id}.json") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -38,6 +39,7 @@ contract TTT is ERC1155, ERC1155Supply, AccessControl, ReentrancyGuard, Pausable
         uint256 tokenId = uint256(grgHash);
         _mint(to, tokenId, amount, "");
         emit TTTMinted(to, tokenId, amount);
+        emit PoTAnchored(tokenId, grgHash, keccak256(abi.encodePacked(to, amount)), block.timestamp);
     }
 
     /**

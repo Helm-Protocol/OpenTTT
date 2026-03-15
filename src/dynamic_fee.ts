@@ -8,21 +8,21 @@ import { TierType } from "./types";
 
 // Target USD cost per tier (Scale: 1e6)
 //
-// AUTHORITATIVE PRICING (Code is truth — Yellow Paper needs update):
-//   YP1 discrepancy: Yellow Paper states T3_micro = $1.50, but code uses $12.00.
-//   The $12.00 value was set intentionally for IoT micro-tick pricing after
-//   cost analysis. The Yellow Paper value ($1.50) is outdated and must be
-//   updated to match this code. See: reports/20260314_audit_results.md YP1.
+// PRICING (2026-03-14 감사 수정):
+//   T2/T3 가격 하향 — 감사 결과 "트랜잭션당 1틱 소비" 구조에서
+//   매 틱 판매 가정은 비현실적. 볼륨 기반 수익 구조로 전환.
+//   T2: $0.24 → $0.05 (4.8x 하향)
+//   T3: $12.00 → $0.10 (120x 하향)
 //
-// Additional YP discrepancies (code is authoritative in all cases):
+// YP discrepancies (code is authoritative in all cases):
 //   YP5: TURBO entry threshold — YP says 90%, code uses 95% (more conservative).
 //   YP6: BOOTSTRAP mintFee — YP says 3%, code uses 5% (500 basis points).
 //   YP7: PoT min confidence — YP says 0.7, code uses 0.5 (auto_mint.ts).
 export const TIER_USD_MICRO: Record<string, bigint> = {
   T0_epoch: 1000n,    // $0.001 * 1e6
   T1_block: 10000n,   // $0.01 * 1e6
-  T2_slot:  240000n,  // $0.24 * 1e6
-  T3_micro: 12000000n, // $12.00 * 1e6 — YP says $1.50, code is authoritative
+  T2_slot:  50000n,   // $0.05 * 1e6 — 감사 수정: 볼륨 기반 수익 구조
+  T3_micro: 100000n,  // $0.10 * 1e6 — 감사 수정: 트랜잭션당 1틱 소비 기준
 };
 
 // Helm protocol fee tiers (Scale: 1e4, e.g., 500 = 5%)
@@ -58,6 +58,7 @@ export class DynamicFeeEngine {
   private provider: JsonRpcProvider | null = null;
   private rpcUrls: string[] = [];
   private config: PriceOracleConfig;
+  private warnedSpotPrice = false;
 
   // P2-3: Recommended max cache duration for DEX price freshness
   private static readonly RECOMMENDED_MAX_CACHE_MS = 5000;
@@ -124,7 +125,13 @@ export class DynamicFeeEngine {
       if (this.config.chainlinkFeed && this.provider) {
         price = await this.fetchChainlinkPrice();
       } else if (this.config.poolAddress && this.provider) {
-        logger.warn("[DynamicFee] Using Uniswap spot price — vulnerable to flash loan manipulation. Configure chainlinkFeed for production.");
+        // To suppress this warning, set `chainlinkFeed` in PriceOracleConfig to a
+        // Chainlink AggregatorV3 address (e.g. the TTT/USD feed on your target chain).
+        // Chainlink TWAP prices are resistant to single-block flash loan manipulation.
+        if (!this.warnedSpotPrice) {
+          logger.warn("[DynamicFee] Using Uniswap spot price — vulnerable to flash loan manipulation. Configure chainlinkFeed for production.");
+          this.warnedSpotPrice = true;
+        }
         price = await this.fetchUniswapPrice();
       } else {
         price = this.config.fallbackPriceUsd;
