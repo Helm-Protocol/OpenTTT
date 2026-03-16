@@ -28,7 +28,7 @@
 ## [0.1.0] - 2026-03-14
 ### Added
 - Initial release: TTTClient with Progressive Disclosure (3 levels)
-- Adaptive GRG pipeline (Golomb → Reed-Solomon → Golay)
+- Adaptive GRG pipeline (multi-layer data integrity)
 - 4 signer types: PrivateKey, Turnkey, AWS KMS, GCP KMS
 - 4 tiers: T0_epoch, T1_block, T2_slot, T3_micro
 - Health monitoring with alerts
