@@ -246,8 +246,8 @@ const ttt = await TTTClient.create({
 
 | Method | Description |
 |---|---|
-| `GrgPipeline.processForward(data)` | Encode: Golomb compression -> Reed-Solomon erasure coding -> Golay verification |
-| `GrgPipeline.processInverse(shards, length)` | Decode: Golay verify -> Reed-Solomon reconstruct -> Golomb decompress |
+| `GrgPipeline.processForward(data)` | Encode data through the multi-layer integrity pipeline, producing verifiable shards |
+| `GrgPipeline.processInverse(shards, length)` | Decode shards back to original data with integrity verification |
 
 ### AdaptiveSwitch
 
@@ -269,32 +269,18 @@ TTTClient (entry point)
 |   |-- EVMConnector       On-chain mint/burn/events (ethers v6)
 |   '-- ProtocolFee        EIP-712 signed fee collection
 |-- AdaptiveSwitch         TURBO/FULL mode state machine
-|-- GRG Pipeline           Golomb + Reed-Solomon + Golay error correction
+|-- GRG Pipeline           Multi-layer data integrity (proprietary)
 |-- PoolRegistry           Multi-pool statistics tracking
 '-- Signer Abstraction     PrivateKey | Turnkey | Privy | KMS
 ```
 
-### The GRG Pipeline
+### Data Integrity: GRG Pipeline
 
-GRG (Golomb-Reed-Golay) is the data integrity backbone of OpenTTT, analogous to how the TLS record protocol protects HTTP payloads.
+GRG is a multi-layer data integrity pipeline that protects PoT payloads — analogous to how the TLS record protocol protects HTTP payloads. It provides compression, erasure coding, and error correction in a single pass.
 
-```
-              FORWARD (Encode)
-  Raw Data --> Golomb-Rice Compression
-           --> Reed-Solomon Erasure Coding
-           --> Golay(24,12) Verification Codes
-           --> Shards
+The pipeline produces verifiable shards that can be independently validated and reconstructed, ensuring PoT integrity even under partial data loss.
 
-              INVERSE (Decode)
-  Shards   --> Golay(24,12) Error Detection
-           --> Reed-Solomon Reconstruction
-           --> Golomb-Rice Decompression
-           --> Raw Data
-```
-
-**Golomb-Rice** compresses timestamp deltas efficiently (small integers compress well).
-**Reed-Solomon** adds erasure coding so data survives shard loss.
-**Golay(24,12)** detects and corrects up to 3-bit errors per 24-bit codeword.
+> Implementation details are proprietary. See the [IETF Draft](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) for the abstract specification.
 
 ### Adaptive Mode Switching
 

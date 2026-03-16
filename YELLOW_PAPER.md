@@ -9,7 +9,7 @@
 
 ## Abstract
 
-Maximal Extractable Value (MEV) remains the single largest structural tax on decentralized exchange users. Existing mitigations--private mempools, commit-reveal schemes, threshold encryption--rely on trust assumptions or impose latency penalties that degrade execution quality. OpenTTT introduces a fundamentally different approach: a physics-based temporal ordering protocol that makes transaction reordering economically irrational rather than technically impossible. The protocol synthesizes high-precision time from multiple independent NTP sources, encodes block metadata through a three-stage data integrity pipeline (Golomb-Rice compression, Reed-Solomon erasure coding, Binary Golay error correction), and enforces ordering compliance through an adaptive mode-switching mechanism that creates a natural economic gradient favoring honest builders. Smart contracts deployed on Ethereum Sepolia (ERC-1155 token + ProtocolFee collector) settle all verification on-chain. The accompanying TypeScript SDK implements progressive disclosure onboarding, requiring only a signer configuration to begin, while exposing full control over time sources, fee tiers, and oracle configurations for advanced operators.
+Maximal Extractable Value (MEV) remains the single largest structural tax on decentralized exchange users. Existing mitigations--private mempools, commit-reveal schemes, threshold encryption--rely on trust assumptions or impose latency penalties that degrade execution quality. OpenTTT introduces a fundamentally different approach: a physics-based temporal ordering protocol that makes transaction reordering economically irrational rather than technically impossible. The protocol synthesizes high-precision time from multiple independent NTP sources, encodes block metadata through a three-stage data integrity pipeline, and enforces ordering compliance through an adaptive mode-switching mechanism that creates a natural economic gradient favoring honest builders. Smart contracts deployed on Ethereum Sepolia (ERC-1155 token + ProtocolFee collector) settle all verification on-chain. The accompanying TypeScript SDK implements progressive disclosure onboarding, requiring only a signer configuration to begin, while exposing full control over time sources, fee tiers, and oracle configurations for advanced operators.
 
 ---
 
@@ -157,60 +157,18 @@ The Proof of Time is entirely self-sufficient. It derives strictly from multi-so
 
 ## 4. The GRG Data Integrity Pipeline
 
-GRG is a three-stage forward pipeline (compression, erasure coding, error correction) with a corresponding inverse pipeline for verification. The pipeline processes block metadata to produce tamper-evident shards that can tolerate both data loss and bit-level corruption.
+GRG is a multi-layer data integrity pipeline that protects PoT payloads — analogous to how the TLS record protocol protects HTTP payloads. The pipeline processes block metadata to produce tamper-evident shards that can tolerate both data loss and bit-level corruption.
 
-### 4.1 Stage 1: Golomb-Rice Compression
+The forward pipeline compresses, adds erasure coding, applies error correction, and appends integrity checksums. The inverse pipeline reverses these stages, verifying integrity at each layer. If any stage detects tampering, the Adaptive Switch immediately transitions to Full mode.
 
-Golomb-Rice coding compresses byte values using a tunable parameter `M`. The SDK uses `M = 16` (`k = log2(16) = 4`).
+**Key properties:**
+- Compression reduces payload size for efficient transport
+- Erasure coding enables reconstruction from a subset of shards
+- Error correction detects and repairs bit-level corruption
+- Integrity checksums provide tamper evidence with immediate mode-switch consequences
+- Input bounds (100 MB maximum) prevent out-of-memory attacks
 
-For each byte value `v`:
-```
-quotient  q = floor(v / 16)
-remainder r = v mod 16
-```
-
-The quotient is encoded in unary (`q` ones followed by a zero), and the remainder in `k`-bit binary. For example, byte value 35: `q = 2`, `r = 3`, yielding unary `110` + binary `0011` = `1100011`.
-
-**Security guard**: The decoder enforces a maximum unary run length of 1,000,000 to prevent amplification-based denial-of-service attacks. Empty inputs are rejected outright to maintain roundtrip identity (the property that `decode(encode(x)) = x` for all valid `x`).
-
-Before compression, a 4-byte big-endian length prefix is prepended to enable exact-length reconstruction during the inverse pipeline.
-
-### 4.2 Stage 2: Reed-Solomon Erasure Coding (GF(2^8))
-
-The compressed payload is split into `k = 4` data shards with `m = 2` parity shards (total `n = 6`). The implementation operates over Galois Field GF(2^8) with irreducible polynomial `0x11D` (x^8 + x^4 + x^3 + x^2 + 1).
-
-**Encoding**: A Vandermonde matrix is constructed over GF(2^8), normalized so that the top `k x k` sub-matrix becomes the identity (systematic encoding). Parity shards are computed by multiplying data bytes against the lower rows of the normalized matrix.
-
-**Shard sizing**: Each shard is `ceil(ceil(data.length / 4) / 3) * 3` bytes, padded to a multiple of 3 for downstream Golay alignment.
-
-**Decoding**: Any 4 of 6 shards suffice for reconstruction. The decoder identifies present shards, extracts the corresponding rows from the encoding matrix, inverts the sub-matrix over GF(2^8), and multiplies against the available shard data to recover the original payload.
-
-### 4.3 Stage 3: Binary Golay Code G(24,12)
-
-Each shard is protected by the extended binary Golay code, a [24, 12, 8] linear block code that corrects up to 3 bit errors and detects 4. The implementation uses systematic form `G = [I_12 | P]` where `P` is the standard 12x12 parity matrix derived from generator polynomial `g(x) = x^11 + x^10 + x^6 + x^5 + x^4 + x^2 + 1`:
-
-```
-P rows (hex): C75, 49F, D4B, 6E3, 9B3, B66, ECC, 1ED, 3DA, 7B4, B1D, E3A
-```
-
-**Encoding**: Input bytes are grouped into 3-byte blocks, split into two 12-bit words, and each word is encoded to a 24-bit codeword by appending 12 parity bits computed as `msg * P`.
-
-**Decoding**: Full syndrome decoding is implemented using both `P` and its transpose `P^T` (which is not equal to `P`). The decoder handles:
-
-1. Syndrome `s = 0`: no errors
-2. `weight(s) <= 3`: errors confined to parity bits only
-3. `weight(s XOR P_i) <= 2` for some row `i`: single message-bit error plus possible parity errors
-4. Second syndrome `s2 = s * P^T`, `weight(s2) <= 3`: errors confined to message bits
-5. `weight(s2 XOR PT_i) <= 2`: combined message and parity errors
-6. Otherwise: uncorrectable (more than 3 bit errors)
-
-### 4.4 Stage 4: SHA-256 Integrity Checksum
-
-After Golay encoding, an 8-byte truncated SHA-256 hash of the encoded shard is appended. During the inverse pipeline, this checksum is verified before Golay decoding proceeds. A mismatch produces a "GRG tamper detected" error, immediately triggering the Adaptive Switch to enter Full mode.
-
-### 4.5 Pipeline Input Bounds
-
-The forward pipeline enforces a maximum input size of 100 MB (`100 * 1024 * 1024` bytes) to prevent out-of-memory attacks.
+> Implementation details (encoding parameters, field arithmetic, matrix constructions, and syndrome decoding) are proprietary. See the [IETF Draft](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) for the abstract specification. Three provisional patents have been filed covering the GRG pipeline composition.
 
 ---
 
@@ -514,9 +472,9 @@ Alerts are emitted for RPC connection failures, low ETH balance (configurable th
 | Layer | Mechanism | Implementation |
 |-------|-----------|----------------|
 | Time spoofing | Multi-source NTP median with 100ms tolerance | `TimeSynthesis.verifyProofOfTime()` |
-| Data tampering | SHA-256 checksum + Golay error correction | `GrgForward.golayEncodeWrapper()` |
-| Data loss | Reed-Solomon 4-of-6 erasure coding | `ReedSolomon.encode/decode()` |
-| Amplification DoS | Golomb unary run cap (1M), GRG input cap (100MB) | `GrgInverse.MAX_GOLOMB_Q`, `GrgPipeline.MAX_INPUT_SIZE` |
+| Data tampering | Integrity checksum + error correction | `GrgForward` pipeline |
+| Data loss | Erasure coding (4-of-6 reconstruction) | `GrgPipeline.processForward/Inverse()` |
+| Amplification DoS | Input bounds + run-length caps, GRG input cap (100MB) | `GrgPipeline.MAX_INPUT_SIZE` |
 | Signature replay | Bounded LRU cache (10K, 1h TTL, 60s prune) | `ProtocolFeeCollector.pruneExpiredSignatures()` |
 | Cross-chain replay | chainId validation against connected network | `ProtocolFeeCollector.validateChainId()` |
 | Flash-loan price manipulation | Chainlink-first oracle priority | `DynamicFeeEngine.getTTTPriceUsd()` |
@@ -531,7 +489,7 @@ The following invariants are enforced throughout the codebase:
 
 1. **Roundtrip identity**: For all non-empty inputs `x`, `GrgInverse(GrgForward(x)) = x`. Empty inputs are rejected at the forward pipeline entry.
 2. **Length preservation**: The inverse pipeline verifies that decoded length matches the original length prepended during encoding. A mismatch throws rather than silently truncating.
-3. **Golay P^T correctness**: The decoder uses a separately computed transpose matrix `P^T` (not `P` itself, which is not symmetric). Without this, syndrome decoding fails for approximately 24% of weight-2 and 50% of weight-3 error patterns.
+3. **Error correction matrix correctness**: The decoder uses correctly computed transpose matrices for syndrome decoding. Implementation details are proprietary.
 
 ---
 
@@ -542,9 +500,9 @@ The following invariants are enforced throughout the codebase:
 | `[TimeSynthesis]` | All NTP sources failed | Zero valid readings | Ensure UDP 123 is unblocked; check NTP server reachability |
 | `[TimeSynthesis]` | PoT self-verification failed | Source readings exceed 100ms tolerance | Investigate network jitter or potential NTP spoofing |
 | `[GRG]` | Tamper detected: SHA-256 mismatch | Checksum verification failed | Dropped to FULL mode; investigate payload integrity |
-| `[GRG]` | Tamper detected: uncorrectable Golay | More than 3 bit errors per codeword | Dropped to FULL mode; severe corruption or deliberate tampering |
+| `[GRG]` | Tamper detected: uncorrectable integrity error | More than correctable bit errors per codeword | Dropped to FULL mode; severe corruption or deliberate tampering |
 | `[GRG]` | Empty input | Roundtrip identity violation | Ensure payload is non-empty before GRG encoding |
-| `[GRG]` | Unary run exceeds 1M | Malformed or malicious Golomb-coded input | Reject input; potential amplification attack |
+| `[GRG]` | Unary run exceeds limit | Malformed or malicious compressed input | Reject input; potential amplification attack |
 | `[GRG]` | Length mismatch in inverse | Decoded length differs from encoded length | Data corruption during transit |
 | `[DynamicFee]` | Oracle stale | Chainlink data > 1800s old | Fallback price engaged automatically |
 | `[DynamicFee]` | Price exceeds MAX_PRICE | Chainlink returned > 10^12 | Fallback price engaged; investigate oracle feed |
@@ -580,9 +538,9 @@ Integration of satellite-based time sources (KTSat infrastructure) to complement
 
 1. Daian, P. et al. "Flash Boys 2.0: Frontrunning in Decentralized Exchanges." IEEE S&P, 2020.
 2. RFC 5905. "Network Time Protocol Version 4: Protocol and Algorithms Specification." IETF, 2010.
-3. Golomb, S.W. "Run-length encodings." IEEE Transactions on Information Theory, 1966.
-4. Reed, I.S. and Solomon, G. "Polynomial Codes Over Certain Finite Fields." SIAM, 1960.
-5. Golay, M.J.E. "Notes on Digital Coding." Proceedings of the IRE, 1949.
+3. [Reserved — proprietary pipeline references under NDA]
+4. [Reserved — proprietary pipeline references under NDA]
+5. [Reserved — proprietary pipeline references under NDA]
 6. EIP-712. "Ethereum typed structured data hashing and signing." Ethereum Foundation, 2017.
 7. ERC-1155. "Multi Token Standard." Ethereum Foundation, 2018.
 8. Laurie, B., Langley, A., and Kasper, E. "Certificate Transparency." RFC 6962, IETF, 2013.

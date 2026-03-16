@@ -10,7 +10,9 @@
 
 Maximum Extractable Value (MEV) remains the single largest "invisible tax" on decentralized finance (DeFi), costing users billions in slippage, sandwich attacks, and frontrunning annually. To date, the industry's response has relied primarily on social contracts and private mempools—essentially "asking builders nicely" to behave via protocols like Flashbots Protect. While effective, these solutions depend on trust and validator altruism. 
 
-This article introduces **Proof-of-Time (PoT)**, a physics-based verification mechanism implemented by the **OpenTTT SDK**. By synthesizing high-precision NTP time sources with a multi-layered cryptographic integrity pipeline (GRG), OpenTTT enables DEX operators to enforce temporal ordering at the protocol layer. Through an adaptive game-theoretic switcher, honest builders are rewarded with low-latency "Turbo" lanes, while dishonest builders are self-relegated to high-latency "Full" verification paths. OpenTTT transforms transaction ordering from a trust-based promise into a cryptographically verifiable physical proof.
+This article introduces **Proof-of-Time (PoT)**, a physics-based verification mechanism implemented by the **OpenTTT SDK**. By synthesizing high-precision HTTPS time sources with a multi-layered cryptographic integrity pipeline (GRG), OpenTTT enables DEX operators to enforce temporal ordering at the protocol layer. Through an adaptive game-theoretic switcher, honest builders are rewarded with low-latency "Turbo" lanes, while dishonest builders are self-relegated to high-latency "Full" verification paths. OpenTTT transforms transaction ordering from a trust-based promise into a cryptographically verifiable physical proof.
+
+*This protocol is specified in [draft-helmprotocol-tttps-00](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) (IETF Experimental).*
 
 ## 2. The MEV Problem: Trust is Not a Scaling Strategy
 
@@ -27,7 +29,7 @@ Statistics from 2025 indicate that over 50% of MEV volume on Ethereum is derived
 OpenTTT operates on a foundational triad: **Time, Logic, and Sync (TTT)**.
 
 ### Time: Multi-Source Synthesis
-Instead of relying on a single clock, OpenTTT synthesizes time from global authorities (NIST, KRISS, Google NTP). Using a four-timestamp model, it calculates network offset and delay with +/- 10ms precision. This "Synthesized Time" is then signed (PoT) to create a non-repudiable anchor.
+Instead of relying on a single clock, OpenTTT synthesizes time from four independent HTTPS authorities (NIST, Google, Cloudflare, Apple). Unlike plaintext NTP (vulnerable to MITM), all OpenTTT time sources use HTTPS with TLS certificate verification. Using a four-timestamp model, it calculates network offset and delay with +/- 10ms precision. This "Synthesized Time" is then signed (PoT) to create a non-repudiable anchor.
 
 ### Logic: The Adaptive Switch
 The "Logic" layer is governed by an **Adaptive Switch**. It monitors the delta between the builder's claimed block timestamp and the PoT anchor. 
@@ -35,11 +37,9 @@ The "Logic" layer is governed by an **Adaptive Switch**. It monitors the delta b
 - **FULL Mode (~127ms)**: Triggered immediately upon any discrepancy or integrity failure.
 
 ### Sync: The GRG Pipeline
-The "Sync" layer ensures data integrity through the **GRG (Golomb-Rice + Reed-Solomon + Golay) Pipeline**:
-1. **Golomb-Rice**: High-efficiency compression for transaction metadata.
-2. **Reed-Solomon**: 4-of-6 erasure coding ensures data recovery even if 33% of shards are lost.
-3. **Binary Golay G(24,12)**: FEC (Forward Error Correction) detects up to 4-bit errors and corrects 3-bit errors per 12-bit word.
-4. **HMAC-SHA256**: Context-specific checksum (ChainID + PoolAddress) prevents cross-pool replay attacks.
+The "Sync" layer ensures data integrity through the **GRG Pipeline** — a multi-layer integrity pipeline providing compression, erasure coding, error correction, and context-specific checksums in a single pass. The pipeline produces verifiable shards that can be independently validated and reconstructed, ensuring PoT integrity even under partial data loss or bit-level corruption.
+
+> Implementation details are proprietary. See the [IETF Draft](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) for the abstract specification.
 
 ## 4. Proof-of-Time (PoT): Economic Self-Selection
 
@@ -51,10 +51,14 @@ Builders who attempt to reorder transactions for MEV extraction inevitably devia
 
 ## 5. On-Chain Integration: Verifiable Audits
 
-OpenTTT is designed for the **Uniswap v4 Hook** ecosystem. The integration uses a dual-layer approach:
+OpenTTT is designed for the **Uniswap v4 Hook** ecosystem. The first live test pool — **TestTTT/USDC (0.3% fee)** — is deployed on Base Sepolia via Uniswap V4:
+
+- **Pool ID**: `0x901f76c0fca9d171688a530da068756b4b16866170c5ea10519d2a725041527c`
+
+The integration uses a dual-layer approach:
 
 1. **ERC-1155 "Tick" Tokens**: Each PoT anchor is minted as a TTT token on-chain. Builders must "burn" these tokens to prove they have cleared the TTT gate.
-2. **The Graph Subgraph**: All `PoTAnchored` events are indexed via a public subgraph. This creates a "Certificate Transparency" (CT) log for transaction ordering. LPs and users can audit a builder's performance in real-time. If a builder's "G-Score" (Global ordering score) drops, LPs can dynamically migrate liquidity to more honest pools.
+2. **The Graph Subgraph**: All `PoTAnchored` events are indexed via a [public subgraph](https://api.studio.thegraph.com/query/1744392/openttt-base-sepolia/v0.2.0). This creates a "Certificate Transparency" (CT) log for transaction ordering. LPs and users can audit a builder's performance in real-time. If a builder's "G-Score" (Global ordering score) drops, LPs can dynamically migrate liquidity to more honest pools.
 
 ## 6. Economic Model: Sustainability via Tiers
 
@@ -67,7 +71,7 @@ OpenTTT employs a tiered pricing model based on the required temporal resolution
 | **T2_slot** | ~12 sec | High-Frequency Arbitrage |
 | **T3_micro** | ~100 ms | Institutional Pipelines |
 
-Fees are paid in USDC and adjusted dynamically based on the market price of the TTT token. This ensures the protocol remains accessible during low volatility while capturing value during high-demand MEV "storms."
+Fees are denominated in USDC. The protocol is currently live on Base Sepolia testnet with production mainnet deployment planned. Pricing is adjusted dynamically based on temporal resolution tier, ensuring the protocol remains accessible during low volatility while capturing value during high-demand MEV "storms."
 
 ## 7. Comparison: Where Does TTT Fit?
 
@@ -97,7 +101,9 @@ console.log(`Current Mode: ${health.metrics.currentMode}`);
 
 ## Conclusion
 
-The "Wild West" era of MEV is ending. As DeFi matures into institutional-grade infrastructure, trust-based promises are no longer sufficient. **Proof-of-Time** provides the physical evidence required to make transaction ordering fair, transparent, and economically sound. By anchoring DeFi to the invariant of time, OpenTTT builds a more resilient foundation for the next trillion dollars of on-chain value.
+The "Wild West" era of MEV is ending. As DeFi matures into institutional-grade infrastructure, trust-based promises are no longer sufficient. **Proof-of-Time** provides the physical evidence required to make transaction ordering fair, transparent, and economically sound.
+
+As of March 2026, OpenTTT has generated over **4,240 Proof-of-Time records** across three independent channels on Base Sepolia: DEX swap verifications (1,852+), direct on-chain mints (100+), and AI agent MCP calls (2,288+). Notably, the MCP channel generates PoTs faster than on-chain DEX swaps — HTTP-based AI agents produce proofs at higher throughput than the chain itself can settle. All data is publicly queryable via [The Graph subgraph](https://api.studio.thegraph.com/query/1744392/openttt-base-sepolia/v0.2.0). By anchoring DeFi to the invariant of time, OpenTTT builds a more resilient foundation for the next trillion dollars of on-chain value.
 
 ---
 

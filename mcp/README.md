@@ -115,7 +115,7 @@ const verification = await pot_verify({
 ## How It Works
 
 1. **Time Synthesis** — Queries multiple independent time sources (NIST, Google, Cloudflare) via HTTPS/NTP and synthesizes a median timestamp with uncertainty bounds
-2. **GRG Pipeline** — Encodes transaction data through a Golomb-Rice + Reed-Solomon + Golay(24,12) integrity pipeline, producing verifiable shards
+2. **GRG Pipeline** — Encodes transaction data through a multi-layer integrity pipeline, producing verifiable shards
 3. **Ed25519 Signing** — Signs the PoT hash for non-repudiation
 4. **Adaptive Mode** — Honest builders get `turbo` mode (fast, profitable); tampered sequences get `full` mode (slow, costly) — natural economic selection
 
