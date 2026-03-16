@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenTTT | Proof-of-Time Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>OpenTTT Dashboard</h1>
+            <div id="status-badge" class="badge">Live: Sepolia</div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="stats-grid">
+            <div class="stat-card">
+                <h3>Total PoT Anchors</h3>
+                <p id="total-pots">--</p>
+            </div>
+            <div class="stat-card">
+                <h3>Active Builders</h3>
+                <p id="active-builders">--</p>
+            </div>
+            <div class="stat-card">
+                <h3>Network Mode</h3>
+                <p id="network-mode" class="mode-turbo">TURBO</p>
+            </div>
+        </section>
+
+        <section class="charts-row">
+            <div class="chart-container">
+                <h3>PoT Issuance (Time Series)</h3>
+                <canvas id="timeSeriesChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Channel Breakdown</h3>
+                <canvas id="channelChart"></canvas>
+            </div>
+        </section>
+
+        <section class="recent-tx">
+            <h3>Recent PoT Transactions</h3>
+            <table id="tx-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Stratum</th>
+                        <th>Timestamp</th>
+                        <th>Hash</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 Helm Protocol | <a href="https://github.com/Helm-Protocol/OpenTTT" target="_blank">GitHub</a></p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
