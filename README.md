@@ -10,7 +10,7 @@ OpenTTT brings cryptographic time verification to blockchain transaction orderin
 [![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
 [![CI](https://github.com/Helm-Protocol/OpenTTT/actions/workflows/ci.yml/badge.svg)](https://github.com/Helm-Protocol/OpenTTT/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/Helm-Protocol/OpenTTT/branch/main/graph/badge.svg)](https://codecov.io/gh/Helm-Protocol/OpenTTT)
-[![Tests](https://img.shields.io/badge/tests-365%20passing%20%C2%B7%2031%20suites-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-386%20passing%20%C2%B7%2032%20suites-brightgreen)]()
 
 > If this project is useful to you, please [star it on GitHub](https://github.com/Helm-Protocol/OpenTTT) — it helps others find it.
 
@@ -42,7 +42,22 @@ No governance vote. No slashing committee. Cheating is simply bad business.
 
 ## Quick Start
 
-Three lines to start minting TimeTokens:
+### Try it in 30 seconds — No ETH, No Wallet
+
+```typescript
+import { HttpOnlyClient } from "openttt";
+
+const client = new HttpOnlyClient();
+const pot = await client.generatePoT();
+console.log(pot.timestamp, pot.confidence, pot.sources);
+
+const valid = client.verifyPoT(pot);
+console.log("Valid:", valid); // true
+```
+
+No blockchain. No wallet. No gas fees. Just verified time from 4 independent HTTPS sources (NIST, Apple, Google, Cloudflare). Start here, upgrade to on-chain when ready.
+
+### On-Chain Mode (Full Power)
 
 ```typescript
 import { TTTClient } from "openttt";
@@ -51,9 +66,7 @@ const ttt = await TTTClient.forBase({ privateKey: process.env.OPERATOR_PK! });
 ttt.startAutoMint();
 ```
 
-That is it. The SDK connects to Base Mainnet, synthesizes time from three atomic clock sources, and begins minting Proof-of-Time tokens at your configured tier interval.
-
-> **Shorthand**: Pass `privateKey` directly as a string instead of the full `signer` config object. The verbose form `{ signer: { type: "privateKey", key: "0x..." } }` still works for when you need other signer types (Turnkey, KMS, Privy).
+Connects to Base, synthesizes time from atomic clock sources, and mints Proof-of-Time tokens on-chain.
 
 ---
 

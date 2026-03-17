@@ -14,7 +14,7 @@ Jay, 신뢰 네트워크 락인 인프라 구현 완료 보고.
 
 ### 2. Trust Store (`src/trust_store.ts`) ✅
 - `TTTTrustStore` 클래스 — 브라우저 CA 번들 모델
-- 기본 소스: NIST(US) + KRISS(KR) + Google(Global) — stratum 1
+- 기본 소스: NIST(US) + Apple(KR) + Google(Global) — stratum 1
 - `validateSourceQuorum()` — 최소 2개 소스 활성 필수
 - `addSource()` / `removeSource()` — 동적 소스 관리
 - **핵심**: DigiNotar 교훈 — Trust Store에서 제거 = 즉사. TTT Labs가 운영자.

@@ -209,9 +209,6 @@ export class TimeSynthesis {
         this.sources.push(new HTTPSTimeSource('cloudflare', 'https://time.cloudflare.com/'));
       } else if (s === 'apple') {
         this.sources.push(new HTTPSTimeSource('apple', 'https://time.apple.com/'));
-      } else if (s === 'kriss') {
-        // Legacy: KRISS NTP (plaintext UDP) — kept for backward compat, not in defaults
-        this.sources.push(new NTPSource('kriss', 'time.kriss.re.kr'));
       }
     }
   }

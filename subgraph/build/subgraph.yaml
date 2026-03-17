@@ -8,7 +8,7 @@ dataSources:
     source:
       address: "0xde357135cA493e59680182CDE9E1c6A4dA400811"
       abi: TTT
-      startBlock: 1
+      startBlock: 38890000
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -28,7 +28,7 @@ dataSources:
     source:
       address: "0x8C633b05b833a476925F7d9818da6E215760F2c7"
       abi: TTTHook
-      startBlock: 1
+      startBlock: 38890000
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
