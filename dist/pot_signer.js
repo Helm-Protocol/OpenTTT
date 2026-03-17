@@ -4,6 +4,7 @@ exports.PotSigner = void 0;
 // sdk/src/pot_signer.ts — Ed25519 signing for Proof of Time (Non-repudiation)
 // Uses Node.js built-in crypto.sign/verify with Ed25519
 const crypto_1 = require("crypto");
+const fs_1 = require("fs");
 class PotSigner {
     privateKey;
     publicKey;
@@ -52,6 +53,33 @@ class PotSigner {
      * @param expectedPubKey - optional: reject if issuerPubKey doesn't match
      * @returns true if signature is valid
      */
+    /**
+     * Load a PotSigner from a PKCS8 DER hex file.
+     * @param path - path to file containing hex-encoded PKCS8 DER private key
+     */
+    static fromFile(path) {
+        const hex = (0, fs_1.readFileSync)(path, 'utf-8').trim();
+        return new PotSigner(hex);
+    }
+    /**
+     * Load a PotSigner from file if it exists, otherwise generate a new one and save it.
+     * @param path - path to file for persistent key storage
+     */
+    static createOrLoad(path) {
+        if ((0, fs_1.existsSync)(path)) {
+            return PotSigner.fromFile(path);
+        }
+        const signer = new PotSigner();
+        signer.saveToFile(path);
+        return signer;
+    }
+    /**
+     * Save the private key (PKCS8 DER hex) to a file with mode 0o600.
+     * @param path - destination file path
+     */
+    saveToFile(path) {
+        (0, fs_1.writeFileSync)(path, this.getPrivateKeyHex(), { mode: 0o600 });
+    }
     static verifyPotSignature(potHash, potSig, expectedPubKey) {
         if (expectedPubKey && potSig.issuerPubKey !== expectedPubKey)
             return false;

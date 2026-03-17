@@ -36,8 +36,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.KMSSigner = exports.PrivySigner = exports.TurnkeySignerWrapper = exports.PrivateKeySigner = exports.TTTAbstractSigner = exports.SignerType = void 0;
 exports.createSigner = createSigner;
 const ethers_1 = require("ethers");
-const ethers_2 = require("@turnkey/ethers");
-const api_key_stamper_1 = require("@turnkey/api-key-stamper");
 const errors_1 = require("./errors");
 /**
  * Supported signer types in TTT SDK
@@ -99,6 +97,63 @@ class KMSSigner extends TTTAbstractSigner {
 }
 exports.KMSSigner = KMSSigner;
 /**
+ * Extract the uncompressed secp256k1 public key from a DER-encoded
+ * SubjectPublicKeyInfo structure using proper ASN.1 parsing.
+ *
+ * DER layout: SEQUENCE { SEQUENCE { OID, PARAMS }, BITSTRING { 0x00, key } }
+ * We locate the BITSTRING tag (0x03), read its length, skip the
+ * "unused bits" byte, and return the remaining 65 bytes (04 || X || Y).
+ */
+function extractPublicKeyFromDER(der) {
+    let pos = 0;
+    function readTag() {
+        if (pos >= der.length)
+            throw new Error("DER parse error: unexpected end of data while reading tag");
+        return der[pos++];
+    }
+    function readLength() {
+        if (pos >= der.length)
+            throw new Error("DER parse error: unexpected end of data while reading length");
+        const first = der[pos++];
+        if (first < 0x80)
+            return first;
+        const numBytes = first & 0x7f;
+        if (numBytes === 0 || numBytes > 4)
+            throw new Error(`DER parse error: unsupported length encoding (${numBytes} bytes)`);
+        let length = 0;
+        for (let i = 0; i < numBytes; i++) {
+            if (pos >= der.length)
+                throw new Error("DER parse error: unexpected end of data in multi-byte length");
+            length = (length << 8) | der[pos++];
+        }
+        return length;
+    }
+    // Outer SEQUENCE
+    const outerTag = readTag();
+    if (outerTag !== 0x30)
+        throw new Error(`DER parse error: expected SEQUENCE (0x30), got 0x${outerTag.toString(16)}`);
+    readLength(); // outer sequence length
+    // Inner SEQUENCE (algorithm identifier) -- skip it entirely
+    const innerTag = readTag();
+    if (innerTag !== 0x30)
+        throw new Error(`DER parse error: expected inner SEQUENCE (0x30), got 0x${innerTag.toString(16)}`);
+    const innerLen = readLength();
+    pos += innerLen; // skip OID + params
+    // BITSTRING containing the public key
+    const bsTag = readTag();
+    if (bsTag !== 0x03)
+        throw new Error(`DER parse error: expected BITSTRING (0x03), got 0x${bsTag.toString(16)}`);
+    const bsLen = readLength();
+    const unusedBits = der[pos++];
+    if (unusedBits !== 0x00)
+        throw new Error(`DER parse error: expected 0 unused bits in BITSTRING, got ${unusedBits}`);
+    const keyBytes = der.slice(pos, pos + bsLen - 1);
+    if (keyBytes.length !== 65 || keyBytes[0] !== 0x04) {
+        throw new Error(`DER parse error: expected 65-byte uncompressed secp256k1 key (04||X||Y), got ${keyBytes.length} bytes`);
+    }
+    return keyBytes;
+}
+/**
  * Internal utility to parse DER signature to R and S
  */
 function parseDERSignature(sig) {
@@ -146,7 +201,7 @@ class AWSKMSEthersSigner extends ethers_1.AbstractSigner {
         const command = new GetPublicKeyCommand({ KeyId: this.keyId });
         const response = await this.client.send(command);
         const publicKeyDer = response.PublicKey;
-        const pubKey = Buffer.from(publicKeyDer).slice(-65);
+        const pubKey = extractPublicKeyFromDER(Buffer.from(publicKeyDer));
         this.address = (0, ethers_1.computeAddress)("0x" + pubKey.toString('hex'));
         return this.address;
     }
@@ -213,7 +268,7 @@ class GCPKMSEthersSigner extends ethers_1.AbstractSigner {
         const pem = publicKey.pem;
         const base64 = pem.replace(/-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\n|\r/g, '');
         const der = Buffer.from(base64, 'base64');
-        const pubKey = der.slice(-65);
+        const pubKey = extractPublicKeyFromDER(der);
         this.address = (0, ethers_1.computeAddress)("0x" + pubKey.toString('hex'));
         return this.address;
     }
@@ -267,20 +322,23 @@ async function createSigner(config) {
                 key = process.env[config.envVar];
             }
             if (!key)
-                throw new errors_1.TTTSignerError("[Signer] Private key missing", `Neither 'key' nor env var '${config.envVar}' was provided`, "Set the environment variable or provide the key directly in config.");
+                throw new errors_1.TTTSignerError(errors_1.ERROR_CODES.SIGNER_MISSING_KEY, "[Signer] Private key missing", `Neither 'key' nor env var '${config.envVar}' was provided`, "Set the environment variable or provide the key directly in config.");
             if (!key.startsWith('0x'))
                 key = '0x' + key;
             if (!(0, ethers_1.isHexString)(key, 32))
-                throw new errors_1.TTTSignerError("[Signer] Invalid private key format", "Expected 0x + 64 hex characters", "Provide a valid 32-byte hex private key.");
+                throw new errors_1.TTTSignerError(errors_1.ERROR_CODES.SIGNER_INVALID_KEY_FORMAT, "[Signer] Invalid private key format", "Expected 0x + 64 hex characters", "Provide a valid 32-byte hex private key.");
             const wallet = new ethers_1.Wallet(key);
             return new PrivateKeySigner(wallet);
         }
         case 'turnkey': {
-            const stamper = new api_key_stamper_1.ApiKeyStamper({
+            // Dynamic import to avoid mandatory dependency on @turnkey packages
+            const { TurnkeySigner } = await Promise.resolve().then(() => __importStar(require("@turnkey/ethers")));
+            const { ApiKeyStamper } = await Promise.resolve().then(() => __importStar(require("@turnkey/api-key-stamper")));
+            const stamper = new ApiKeyStamper({
                 apiPublicKey: config.apiPublicKey,
                 apiPrivateKey: config.apiPrivateKey,
             });
-            const turnkeySigner = new ethers_2.TurnkeySigner({
+            const turnkeySigner = new TurnkeySigner({
                 baseUrl: config.apiBaseUrl,
                 stamper,
                 organizationId: config.organizationId,
@@ -289,7 +347,7 @@ async function createSigner(config) {
             return new TurnkeySignerWrapper(turnkeySigner);
         }
         case 'privy': {
-            throw new errors_1.TTTSignerError("[Signer] Privy wallet signer extraction not fully implemented", "Privy requires proper session context and walletId", "Refer to Privy server-auth documentation for server-side signing.");
+            throw new errors_1.TTTSignerError(errors_1.ERROR_CODES.SIGNER_PRIVY_NOT_IMPLEMENTED, "[Signer] Privy signer is not yet implemented. Use 'privateKey' or 'turnkey' instead.", "Privy embedded wallet support is planned but not available in this release.", "Use { type: 'privateKey', key: '0x...' } or { type: 'turnkey', ... } as your signer config.");
         }
         case 'kms': {
             if (config.provider === 'aws') {
@@ -301,12 +359,12 @@ async function createSigner(config) {
                     return new KMSSigner(awsSigner);
                 }
                 catch (e) {
-                    throw new errors_1.TTTSignerError("[Signer] AWS KMS initialization failed", e.message, "Ensure @aws-sdk/client-kms is installed and credentials are configured.");
+                    throw new errors_1.TTTSignerError(errors_1.ERROR_CODES.SIGNER_KMS_AWS_INIT_FAILED, "[Signer] AWS KMS initialization failed", e.message, "Ensure @aws-sdk/client-kms is installed and credentials are configured.");
                 }
             }
             else if (config.provider === 'gcp') {
                 if (!config.projectId || !config.locationId || !config.keyRingId || !config.keyVersionId) {
-                    throw new errors_1.TTTSignerError("[Signer] GCP KMS missing required fields", `projectId=${config.projectId}, locationId=${config.locationId}, keyRingId=${config.keyRingId}, keyVersionId=${config.keyVersionId}`, "Provide all required GCP KMS fields: projectId, locationId, keyRingId, keyVersionId.");
+                    throw new errors_1.TTTSignerError(errors_1.ERROR_CODES.SIGNER_KMS_GCP_MISSING_FIELDS, "[Signer] GCP KMS missing required fields", `projectId=${config.projectId}, locationId=${config.locationId}, keyRingId=${config.keyRingId}, keyVersionId=${config.keyVersionId}`, "Provide all required GCP KMS fields: projectId, locationId, keyRingId, keyVersionId.");
                 }
                 try {
                     // @ts-ignore
@@ -317,13 +375,13 @@ async function createSigner(config) {
                     return new KMSSigner(gcpSigner);
                 }
                 catch (e) {
-                    throw new errors_1.TTTSignerError("[Signer] GCP KMS initialization failed", e.message, "Ensure @google-cloud/kms is installed and application default credentials are set.");
+                    throw new errors_1.TTTSignerError(errors_1.ERROR_CODES.SIGNER_KMS_GCP_INIT_FAILED, "[Signer] GCP KMS initialization failed", e.message, "Ensure @google-cloud/kms is installed and application default credentials are set.");
                 }
             }
-            throw new errors_1.TTTSignerError("[Signer] Unsupported KMS provider", `Provider: ${config.provider}`, "Use 'aws' or 'gcp'.");
+            throw new errors_1.TTTSignerError(errors_1.ERROR_CODES.SIGNER_KMS_UNSUPPORTED_PROVIDER, "[Signer] Unsupported KMS provider", `Provider: ${config.provider}`, "Use 'aws' or 'gcp'.");
         }
         default:
             // @ts-ignore
-            throw new errors_1.TTTSignerError(`[Signer] Unsupported signer type`, `Type: ${config.type}`, "Provide a supported signer type: privateKey, turnkey, privy, kms.");
+            throw new errors_1.TTTSignerError(errors_1.ERROR_CODES.SIGNER_UNSUPPORTED_TYPE, `[Signer] Unsupported signer type`, `Type: ${config.type}`, "Provide a supported signer type: privateKey, turnkey, privy, kms.");
     }
 }

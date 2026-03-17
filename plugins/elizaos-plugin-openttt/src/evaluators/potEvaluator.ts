@@ -33,10 +33,12 @@ export const potEvaluator: Evaluator = {
     runtime: IAgentRuntime,
     message: Memory,
     _state?: State
-  ): Promise<string> => {
+  ): Promise<void> => {
     // Check if a PoT was generated for this message
     const potKey = `openttt:pot:${message.id}`;
-    const cached = await runtime.cacheManager?.get<string>(potKey);
+    // runtime might not have cacheManager directly if it's an older or different version, 
+    // or it's accessible via runtime.getService(ServiceType.CACHE)
+    const cached = await runtime.getService?.("cache")?.get<string>(potKey);
 
     if (cached) {
       try {
@@ -46,7 +48,7 @@ export const potEvaluator: Evaluator = {
           ? `${Math.round(age_ms / 1000)}s ago`
           : `${Math.round(age_ms / 60000)}m ago`;
 
-        return (
+        console.log(
           `[POT_COVERAGE_EVALUATOR] ✓ Transaction has PoT coverage. ` +
           `Issued: ${ageLabel}, Sources: ${pot.sources.join(", ")}, ` +
           `Consensus: ${pot.consensus ? "YES" : "DEGRADED"}.`
@@ -56,7 +58,7 @@ export const potEvaluator: Evaluator = {
       }
     }
 
-    return (
+    console.warn(
       `[POT_COVERAGE_EVALUATOR] ⚠ No Proof-of-Time found for this transaction. ` +
       `Consider calling GENERATE_POT before submitting trades to ensure ` +
       `tamper-evident temporal attestation.`
@@ -68,7 +70,7 @@ export const potEvaluator: Evaluator = {
       context: "Agent is about to submit a swap transaction",
       messages: [
         {
-          user: "{{user1}}",
+          user: "user1",
           content: { text: "Execute the swap for 1 ETH to USDC" },
         },
       ],
@@ -79,7 +81,7 @@ export const potEvaluator: Evaluator = {
       context: "Agent generated PoT before trade",
       messages: [
         {
-          user: "{{user1}}",
+          user: "user1",
           content: { text: "Submit the buy order" },
         },
       ],

@@ -20,7 +20,7 @@ export declare class TTTBuilder {
      * Verify block data using the AdaptiveSwitch pipeline.
      * Updates the current mode based on verification results.
      */
-    verifyBlock(blockData: Block, tttRecord: TTTRecord): Promise<AdaptiveMode>;
+    verifyBlock(blockData: Block, tttRecord: TTTRecord, chainId: number, poolAddress: string, tier?: string): Promise<AdaptiveMode>;
     /**
      * Return the current TURBO/FULL mode.
      */

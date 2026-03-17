@@ -42,13 +42,24 @@ export interface PriceOracleConfig {
 export declare class DynamicFeeEngine {
     private priceCache;
     private provider;
+    private rpcUrls;
     private config;
+    private warnedSpotPrice;
     private static readonly RECOMMENDED_MAX_CACHE_MS;
     constructor(config: PriceOracleConfig);
-    connect(rpcUrl: string): Promise<void>;
+    /**
+     * Connect to an RPC provider. Accepts a single URL or an array of URLs
+     * for multi-RPC fallback. On connection failure, the next URL is tried.
+     */
+    connect(rpcUrl: string | string[]): Promise<void>;
+    /**
+     * Iterate through stored RPC URLs and connect to the first one that succeeds.
+     * Throws if all URLs fail.
+     */
+    private connectToNext;
     getTTTPriceUsd(): Promise<bigint>;
     /**
-     * 캐시 강제 무효화 — 외부에서 즉시 가격 갱신이 필요할 때 호출
+     * Force-invalidate price cache -- call when immediate price refresh is needed.
      */
     invalidateCache(): void;
     private fetchUniswapPrice;

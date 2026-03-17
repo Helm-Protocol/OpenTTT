@@ -12,6 +12,8 @@ export interface Block {
     txs: string[];
     data: Uint8Array;
 }
+/** Tier-based dynamic tolerance (ms) — auditor-requested upgrade */
+export declare const TIER_TOLERANCE_MS: Record<string, number>;
 export declare class AdaptiveSwitch {
     private windowSize;
     private threshold;
@@ -22,23 +24,36 @@ export declare class AdaptiveSwitch {
     private consecutiveFailures;
     private turboEntryThreshold;
     private turboMaintainThreshold;
+    private tolerance;
+    constructor(options?: {
+        tolerance?: number;
+    });
     /**
-     * TTT의 핵심 메커니즘: 타임스탬프 순서 일치율에 따른 Turbo/Full 모드 전환
+     * Core TTT mechanism: switches between Turbo/Full mode based on timestamp ordering match rate.
      */
-    verifyBlock(block: Block, tttRecord: TTTRecord): AdaptiveMode;
+    verifyBlock(block: Block, tttRecord: TTTRecord, chainId: number, poolAddress: string, tier?: string): AdaptiveMode;
     /**
-     * 모드에 따른 수수료 할인율 반환
-     * TURBO: 20% 할인 (수익 증가 유도)
-     * FULL: 할인 없음
+     * Return fee discount rate based on current mode.
+     * TURBO: 20% discount (incentivizes profitability).
+     * FULL: No discount.
      */
     getFeeDiscount(): number;
     /**
-     * 현재 모드 조회
+     * Get current adaptive mode.
      */
     getCurrentMode(): AdaptiveMode;
     /**
-     * 테스트용: 이력 초기화
+     * Reset history (for testing).
      */
     reset(): void;
+    /**
+     * Serialize internal state to JSON for persistence across restarts.
+     * Allows operators to avoid re-learning over 20 blocks after a restart.
+     */
+    serialize(): string;
+    /**
+     * Reconstruct an AdaptiveSwitch from previously serialized JSON state.
+     */
+    static deserialize(json: string): AdaptiveSwitch;
     private compareTransactionOrder;
 }

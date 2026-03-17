@@ -55,4 +55,13 @@ export declare class PoolRegistry {
      * @returns Array of pool addresses.
      */
     listPools(): string[];
+    /**
+     * Serialize registry state to JSON for persistence across restarts.
+     * Allows operators to restore pool registrations and stats without re-registering.
+     */
+    serialize(): string;
+    /**
+     * Reconstruct a PoolRegistry from previously serialized JSON state.
+     */
+    static deserialize(json: string): PoolRegistry;
 }

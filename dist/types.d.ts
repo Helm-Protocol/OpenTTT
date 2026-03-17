@@ -9,9 +9,19 @@ export declare const TierIntervals: Record<TierType, number>;
  */
 export interface TTTClientConfig {
     /**
-     * Required: Signer configuration (PrivateKey, Turnkey, Privy, KMS)
+     * Signer configuration (PrivateKey, Turnkey, Privy, KMS).
+     * Required unless `privateKey` shorthand is provided.
      */
-    signer: SignerConfig;
+    signer?: SignerConfig;
+    /**
+     * Shorthand: pass a raw private key string directly.
+     * If provided (and `signer` is not), auto-converts to { type: 'privateKey', key: ... }.
+     * Accepts with or without '0x' prefix.
+     *
+     * @example
+     * TTTClient.forBase({ privateKey: process.env.OPERATOR_PK! })
+     */
+    privateKey?: string;
     /**
      * Optional: Network selection (preset "base", "sepolia" or custom NetworkConfig)
      * Default: "base" (Base Mainnet)
@@ -28,7 +38,7 @@ export interface TTTClientConfig {
     rpcUrl?: string;
     /**
      * Optional: Overwrite default NTP/KTSat sources
-     * Default: ["nist", "kriss", "google"]
+     * Default: ["nist", "google", "cloudflare", "apple"]
      */
     timeSources?: string[];
     /**
@@ -57,6 +67,12 @@ export interface TTTClientConfig {
      * Optional: Automatically register SIGINT handler for graceful shutdown
      */
     enableGracefulShutdown?: boolean;
+    /**
+     * Optional: Maximum number of mint latency samples to keep in the ring buffer.
+     * Used for avgMintLatencyMs calculation in health checks.
+     * Default: 100
+     */
+    maxLatencyHistory?: number;
 }
 /**
  * Internal configuration used by engines.
@@ -75,6 +91,8 @@ export interface AutoMintConfig {
     protocolFeeRate: number;
     protocolFeeRecipient: string;
     fallbackPriceUsd?: bigint;
+    maxLatencyHistory?: number;
+    potSignerKeyPath?: string;
 }
 export interface MintResult {
     tokenId: string;
@@ -138,9 +156,34 @@ export interface ProofOfTime {
         source: string;
         timestamp: bigint;
         uncertainty: number;
+        stratum?: number;
     }[];
     nonce: string;
     expiresAt: bigint;
     issuerSignature?: PotSignature;
+}
+/**
+ * Health status returned by TTTClient.getHealth().
+ * Provides liveness, readiness, and operational metrics.
+ */
+export interface HealthStatus {
+    healthy: boolean;
+    checks: {
+        initialized: boolean;
+        rpcConnected: boolean;
+        signerAvailable: boolean;
+        balanceSufficient: boolean;
+        ntpSourcesOk: boolean;
+    };
+    metrics: {
+        mintCount: number;
+        mintFailures: number;
+        successRate: number;
+        totalFeesPaid: string;
+        avgMintLatencyMs: number;
+        lastMintAt: string | null;
+        uptimeMs: number;
+    };
+    alerts: string[];
 }
 export type { PotSignature } from "./pot_signer";
