@@ -1,19 +1,30 @@
 "use strict";
 // sdk/src/dynamic_fee.ts — Dynamic Fee Engine
-// TTT 시장가에 연동되어 자동으로 tick 비용 조정
-// DEX 운영자는 tier만 설정 → 나머지 SDK가 자동 처리
+// Automatically adjusts tick cost based on TTT market price
+// DEX operators only set tier; the SDK handles the rest automatically
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DynamicFeeEngine = exports.FEE_TIERS = exports.TIER_USD_MICRO = void 0;
 const ethers_1 = require("ethers");
 const logger_1 = require("./logger");
-// Tier별 USD 목표 비용 (Scale: 1e6)
+// Target USD cost per tier (Scale: 1e6)
+//
+// PRICING (2026-03-14 감사 수정):
+//   T2/T3 가격 하향 — 감사 결과 "트랜잭션당 1틱 소비" 구조에서
+//   매 틱 판매 가정은 비현실적. 볼륨 기반 수익 구조로 전환.
+//   T2: $0.24 → $0.05 (4.8x 하향)
+//   T3: $12.00 → $0.10 (120x 하향)
+//
+// YP discrepancies (code is authoritative in all cases):
+//   YP5: TURBO entry threshold — YP says 90%, code uses 95% (more conservative).
+//   YP6: BOOTSTRAP mintFee — YP says 3%, code uses 5% (500 basis points).
+//   YP7: PoT min confidence — YP says 0.7, code uses 0.5 (auto_mint.ts).
 exports.TIER_USD_MICRO = {
     T0_epoch: 1000n, // $0.001 * 1e6
     T1_block: 10000n, // $0.01 * 1e6
-    T2_slot: 240000n, // $0.24 * 1e6
-    T3_micro: 12000000n, // $12 * 1e6
+    T2_slot: 50000n, // $0.05 * 1e6 — 감사 수정: 볼륨 기반 수익 구조
+    T3_micro: 100000n, // $0.10 * 1e6 — 감사 수정: 트랜잭션당 1틱 소비 기준
 };
-// Helm 프로토콜 수수료 구간 (Scale: 1e4, e.g., 500 = 5%)
+// Helm protocol fee tiers (Scale: 1e4, e.g., 500 = 5%)
 exports.FEE_TIERS = {
     BOOTSTRAP: { mintFee: 500n, burnFee: 200n, threshold: 5000n }, // threshold: $0.005 * 1e6
     GROWTH: { mintFee: 1000n, burnFee: 300n, threshold: 50000n }, // threshold: $0.05 * 1e6
@@ -23,7 +34,9 @@ exports.FEE_TIERS = {
 class DynamicFeeEngine {
     priceCache = null;
     provider = null;
+    rpcUrls = [];
     config;
+    warnedSpotPrice = false;
     // P2-3: Recommended max cache duration for DEX price freshness
     static RECOMMENDED_MAX_CACHE_MS = 5000;
     constructor(config) {
@@ -37,10 +50,42 @@ class DynamicFeeEngine {
             logger_1.logger.warn(`[DynamicFee] cacheDurationMs=${config.cacheDurationMs}ms exceeds recommended ${DynamicFeeEngine.RECOMMENDED_MAX_CACHE_MS}ms for DEX pricing accuracy`);
         }
     }
+    /**
+     * Connect to an RPC provider. Accepts a single URL or an array of URLs
+     * for multi-RPC fallback. On connection failure, the next URL is tried.
+     */
     async connect(rpcUrl) {
-        if (!rpcUrl)
-            throw new Error("[DynamicFee] RPC URL is required");
-        this.provider = new ethers_1.JsonRpcProvider(rpcUrl);
+        const urls = Array.isArray(rpcUrl) ? rpcUrl : [rpcUrl];
+        if (urls.length === 0 || urls.every(u => !u)) {
+            throw new Error("[DynamicFee] At least one valid RPC URL is required");
+        }
+        this.rpcUrls = urls.filter(u => !!u);
+        await this.connectToNext();
+    }
+    /**
+     * Iterate through stored RPC URLs and connect to the first one that succeeds.
+     * Throws if all URLs fail.
+     */
+    async connectToNext() {
+        let lastError = null;
+        for (const url of this.rpcUrls) {
+            try {
+                const provider = new ethers_1.JsonRpcProvider(url);
+                // Verify connectivity by requesting the network
+                await provider.getNetwork();
+                this.provider = provider;
+                logger_1.logger.info(`[DynamicFee] Connected to RPC: ${url}`);
+                return;
+            }
+            catch (err) {
+                lastError = err instanceof Error ? err : new Error(String(err));
+                logger_1.logger.warn(`[DynamicFee] RPC connection failed for ${url}: ${lastError.message}`);
+            }
+        }
+        // If all URLs failed, fall back to the first URL without connectivity check
+        // so that subsequent calls can still attempt requests
+        this.provider = new ethers_1.JsonRpcProvider(this.rpcUrls[0]);
+        logger_1.logger.warn(`[DynamicFee] All RPC URLs failed connectivity check, using first URL as fallback`);
     }
     async getTTTPriceUsd() {
         const now = Date.now();
@@ -54,7 +99,13 @@ class DynamicFeeEngine {
                 price = await this.fetchChainlinkPrice();
             }
             else if (this.config.poolAddress && this.provider) {
-                logger_1.logger.warn("[DynamicFee] Using Uniswap spot price — vulnerable to flash loan manipulation. Configure chainlinkFeed for production.");
+                // To suppress this warning, set `chainlinkFeed` in PriceOracleConfig to a
+                // Chainlink AggregatorV3 address (e.g. the TTT/USD feed on your target chain).
+                // Chainlink TWAP prices are resistant to single-block flash loan manipulation.
+                if (!this.warnedSpotPrice) {
+                    logger_1.logger.warn("[DynamicFee] Using Uniswap spot price — vulnerable to flash loan manipulation. Configure chainlinkFeed for production.");
+                    this.warnedSpotPrice = true;
+                }
                 price = await this.fetchUniswapPrice();
             }
             else {
@@ -76,7 +127,7 @@ class DynamicFeeEngine {
         }
     }
     /**
-     * 캐시 강제 무효화 — 외부에서 즉시 가격 갱신이 필요할 때 호출
+     * Force-invalidate price cache -- call when immediate price refresh is needed.
      */
     invalidateCache() {
         this.priceCache = null;

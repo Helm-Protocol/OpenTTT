@@ -25,5 +25,20 @@ export declare class PotSigner {
      * @param expectedPubKey - optional: reject if issuerPubKey doesn't match
      * @returns true if signature is valid
      */
+    /**
+     * Load a PotSigner from a PKCS8 DER hex file.
+     * @param path - path to file containing hex-encoded PKCS8 DER private key
+     */
+    static fromFile(path: string): PotSigner;
+    /**
+     * Load a PotSigner from file if it exists, otherwise generate a new one and save it.
+     * @param path - path to file for persistent key storage
+     */
+    static createOrLoad(path: string): PotSigner;
+    /**
+     * Save the private key (PKCS8 DER hex) to a file with mode 0o600.
+     * @param path - destination file path
+     */
+    saveToFile(path: string): void;
     static verifyPotSignature(potHash: string, potSig: PotSignature, expectedPubKey?: string): boolean;
 }

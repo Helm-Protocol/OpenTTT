@@ -1,32 +1,21 @@
-import { AutoMintConfig, TTTClientConfig } from "./types";
+import { EventEmitter } from "events";
+import { AutoMintConfig, TTTClientConfig, MintResult, HealthStatus } from "./types";
+export { HealthStatus } from "./types";
 /**
- * Health status returned by getHealth()
+ * Typed event map for TTTClient EventEmitter.
  */
-export interface HealthStatus {
-    healthy: boolean;
-    checks: {
-        initialized: boolean;
-        rpcConnected: boolean;
-        signerAvailable: boolean;
-        balanceSufficient: boolean;
-        ntpSourcesOk: boolean;
-    };
-    metrics: {
-        mintCount: number;
-        mintFailures: number;
-        successRate: number;
-        totalFeesPaid: string;
-        avgMintLatencyMs: number;
-        lastMintAt: string | null;
-        uptimeMs: number;
-    };
-    alerts: string[];
+export interface TTTClientEvents {
+    mint: [result: MintResult];
+    error: [error: Error];
+    alert: [alert: string];
+    latency: [ms: number];
+    modeSwitch: [mode: string];
 }
 /**
- * TTTClient - DEX 운영자용 SDK 진입점
- * 모든 내부 모듈을 초기화하고 자동 민팅 프로세스를 관리
+ * TTTClient - SDK entry point for DEX operators.
+ * Initializes all internal modules and manages the auto-minting process.
  */
-export declare class TTTClient {
+export declare class TTTClient extends EventEmitter {
     private config;
     private autoMintEngine;
     private poolRegistry;
@@ -37,10 +26,10 @@ export declare class TTTClient {
     private signer;
     private lastTokenId;
     private mintLatencies;
+    private maxLatencyHistory;
     private lastMintAt;
     private startedAt;
     private minBalanceWei;
-    private onAlertCallback?;
     constructor(config: AutoMintConfig);
     /**
      * Static factory for Base Mainnet
@@ -59,17 +48,22 @@ export declare class TTTClient {
      */
     destroy(): Promise<void>;
     /**
-     * SDK 초기화: RPC 연결, 시간 소스 설정, 수수료 엔진 연결
+     * Initialize the SDK: RPC connection, time sources, fee engine wiring.
      */
     initialize(): Promise<void>;
     /**
-     * 자동 민팅 프로세스 시작
+     * Start the auto-minting process.
      */
     startAutoMint(): void;
     /**
-     * 자동 민팅 프로세스 정지
+     * Stop the auto-minting process.
      */
     stopAutoMint(): void;
+    /**
+     * Resume auto-minting after a circuit breaker trip.
+     * Resets consecutive failure count and restarts the engine.
+     */
+    resume(): void;
     /**
      * List registered pools.
      */
@@ -87,6 +81,7 @@ export declare class TTTClient {
     setMinBalance(weiAmount: bigint): void;
     /**
      * Register alert callback for real-time notifications.
+     * Backward compatible: delegates to EventEmitter 'alert' event.
      */
     onAlert(callback: (alert: string) => void): void;
     private emitAlert;
@@ -104,7 +99,7 @@ export declare class TTTClient {
      */
     getHealth(): Promise<HealthStatus>;
     /**
-     * 현재 SDK 상태 및 통계 반환 (잔고, 민팅 수, 수수료 등)
+     * Return current SDK status and statistics (balance, mint count, fees, etc.)
      */
     getStatus(): Promise<{
         isInitialized: boolean;

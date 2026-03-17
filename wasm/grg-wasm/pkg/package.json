@@ -1,0 +1,17 @@
+{
+  "name": "grg-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "grg_wasm_bg.wasm",
+    "grg_wasm.js",
+    "grg_wasm_bg.js",
+    "grg_wasm.d.ts"
+  ],
+  "main": "grg_wasm.js",
+  "types": "grg_wasm.d.ts",
+  "sideEffects": [
+    "./grg_wasm.js",
+    "./snippets/*"
+  ]
+}

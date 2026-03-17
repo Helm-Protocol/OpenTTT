@@ -92,7 +92,7 @@ export const timeProvider: Provider = {
     _runtime: IAgentRuntime,
     _message: Memory,
     _state?: State
-  ): Promise<string> => {
+  ): Promise<any> => {
     const vt = await getVerifiedTime();
 
     const iso = new Date(vt.timestamp).toISOString();

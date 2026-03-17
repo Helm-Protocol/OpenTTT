@@ -7,6 +7,10 @@ export interface VerificationResult {
     txCount: number;
     latency: number;
 }
+export interface EVMConnectorOptions {
+    fallbackRpcUrls?: string[];
+    maxReconnectAttempts?: number;
+}
 export declare class EVMConnector {
     private provider;
     private signer;
@@ -14,7 +18,12 @@ export declare class EVMConnector {
     private protocolFeeContract;
     private eventListeners;
     private static readonly GAS_TIMEOUT_MS;
-    constructor();
+    private primaryRpcUrl;
+    private fallbackRpcUrls;
+    private signerOrKey;
+    private maxReconnectAttempts;
+    private connected;
+    constructor(options?: EVMConnectorOptions);
     /**
      * P1-7: Race estimateGas against timeout to prevent DoS
      */
@@ -23,6 +32,24 @@ export declare class EVMConnector {
      * Connect to an EVM chain using either a private key or a pre-configured signer.
      */
     connect(rpcUrl: string, signerOrKey: string | Signer): Promise<void>;
+    /**
+     * Reconnect using stored credentials. Tries primary first, then fallbacks.
+     */
+    reconnect(): Promise<void>;
+    /**
+     * Disconnect and release all resources.
+     */
+    disconnect(): void;
+    /**
+     * Check if the connector is currently connected.
+     */
+    isConnected(): boolean;
+    /**
+     * CT Log Equivalent: PoTAnchored event ABI fragment.
+     * Every Proof-of-Time anchor is publicly auditable on-chain,
+     * analogous to Certificate Transparency logs in TLS.
+     */
+    static readonly POT_ANCHORED_EVENT_ABI = "event PoTAnchored(uint64 indexed timestamp, bytes32 grgHash, uint8 stratum, bytes32 potHash)";
     /**
      * Attach the TTT Token contract.
      */

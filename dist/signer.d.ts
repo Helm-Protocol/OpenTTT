@@ -1,5 +1,4 @@
 import { Signer, Wallet } from "ethers";
-import { TurnkeySigner } from "@turnkey/ethers";
 /**
  * Supported signer types in TTT SDK
  */
@@ -56,7 +55,7 @@ export declare class PrivateKeySigner extends TTTAbstractSigner {
  * TEE-based institution-grade signer (Turnkey)
  */
 export declare class TurnkeySignerWrapper extends TTTAbstractSigner {
-    constructor(signer: TurnkeySigner);
+    constructor(signer: Signer);
 }
 /**
  * Social/Embedded wallet signer (Privy)

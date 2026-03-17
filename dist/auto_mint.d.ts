@@ -1,8 +1,9 @@
+import { TimeSynthesis } from "./time_synthesis";
 import { EVMConnector } from "./evm_connector";
 import { AutoMintConfig, MintResult } from "./types";
 /**
- * AutoMintEngine - TTT 자동 민팅 엔진
- * 시간 합성, 동적 수수료 계산, EVM 민팅을 하나의 루프로 결합
+ * AutoMintEngine - Automatic TTT minting engine.
+ * Combines time synthesis, dynamic fee calculation, and EVM minting into a single loop.
  */
 export declare class AutoMintEngine {
     private config;
@@ -20,26 +21,40 @@ export declare class AutoMintEngine {
     private consecutiveFailures;
     private maxConsecutiveFailures;
     private potSigner;
+    /** Monotonic counter appended to tokenId hash to prevent collision when two mints share the same nanosecond timestamp. */
+    private mintNonce;
+    /** Fire the GRG >50ms performance warning at most once per engine session. */
+    private warnedGrgSlow;
     constructor(config: AutoMintConfig);
     getEvmConnector(): EVMConnector;
+    getTimeSynthesis(): TimeSynthesis;
     setOnMint(callback: (result: MintResult) => void): void;
     setOnFailure(callback: (error: Error) => void): void;
     setOnLatency(callback: (ms: number) => void): void;
     /**
-     * 엔진 초기화 (RPC 연결 및 컨트랙트 설정)
+     * Initialize the engine (RPC connection and contract setup).
      */
     initialize(): Promise<void>;
     /**
-     * 자동 민팅 루프 시작
+     * Start the automatic minting loop.
      */
     start(): void;
     /**
-     * 자동 민팅 루프 정지
+     * Stop the automatic minting loop.
      */
     stop(): void;
     /**
-     * 단일 민트 틱 실행
-     * 시간합성 → tokenId 생성 → EVM mint 호출 → 수수료 계산/차감
+     * Resume the minting loop after a circuit breaker trip.
+     * Resets the consecutive failure counter and restarts the loop.
+     */
+    resume(): void;
+    /**
+     * Sleep helper for retry backoff.
+     */
+    private sleep;
+    /**
+     * Execute a single mint tick.
+     * Time synthesis -> tokenId generation -> EVM mint call -> fee calculation/deduction.
      */
     mintTick(): Promise<void>;
     private signFeeMessage;
