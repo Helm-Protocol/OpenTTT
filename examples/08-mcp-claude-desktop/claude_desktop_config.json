@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "openttt": {
+      "command": "node",
+      "args": [
+        "/path/to/openttt-mcp-server/dist/index.js"
+      ],
+      "env": {
+        "OPENTTT_BASE_URL": "https://ttt.helmprotocol.com",
+        "OPENTTT_MODE": "httpOnly",
+        "OPENTTT_TIMEOUT_MS": "5000"
+      },
+      "comment": "Replace /path/to/openttt-mcp-server with your local install path. httpOnly mode requires no private key."
+    }
+  }
+}
