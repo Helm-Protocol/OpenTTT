@@ -1,0 +1,39 @@
+# GRG IP protection — exclude from npm package
+src/golay.ts
+src/grg_forward.ts
+src/grg_inverse.ts
+src/grg_pipeline.ts
+src/reed_solomon.ts
+dist/golay.js
+dist/golay.d.ts
+dist/grg_forward.js
+dist/grg_forward.d.ts
+dist/grg_inverse.js
+dist/grg_inverse.d.ts
+dist/grg_pipeline.js
+dist/grg_pipeline.d.ts
+dist/reed_solomon.js
+dist/reed_solomon.d.ts
+
+# GRG vendor (private crypto)
+vendor/helm-crypto/golay.*
+vendor/helm-crypto/grg_forward.*
+vendor/helm-crypto/grg_inverse.*
+vendor/helm-crypto/grg_pipeline.*
+vendor/helm-crypto/reed_solomon.*
+vendor/
+
+# Test files
+tests/
+__tests__/
+
+# Reports and docs
+reports/
+docs/
+dashboard/
+
+# Build artifacts
+contracts/artifacts/build-info/
+
+# Security
+mcp/.mcpregistry_*

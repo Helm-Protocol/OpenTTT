@@ -6,3 +6,15 @@ dist/
 *.log
 coverage/
 .DS_Store
+
+# Security — tokens
+mcp/.mcpregistry_*
+
+# Build artifacts
+contracts/artifacts/build-info/
+
+# Binaries
+mcp/mcp-publisher
+
+# Reports (internal)
+reports/

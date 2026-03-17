@@ -12,6 +12,8 @@ OpenTTT brings cryptographic time verification to blockchain transaction orderin
 [![codecov](https://codecov.io/gh/Helm-Protocol/OpenTTT/branch/main/graph/badge.svg)](https://codecov.io/gh/Helm-Protocol/OpenTTT)
 [![Tests](https://img.shields.io/badge/tests-365%20passing%20%C2%B7%2031%20suites-brightgreen)]()
 
+> If this project is useful to you, please [star it on GitHub](https://github.com/Helm-Protocol/OpenTTT) — it helps others find it.
+
 ```
 npm install openttt
 ```
@@ -386,3 +388,15 @@ Copyright 2026 Helm Protocol.
 - [Helm Protocol](https://github.com/Helm-Protocol) — GitHub Organization
 
 [GitHub](https://github.com/Helm-Protocol/OpenTTT) | Built by [Helm Protocol](https://github.com/Helm-Protocol)
+
+---
+
+## Contributing
+
+Contributions are welcome. If you find a bug, have a feature request, or want to improve the documentation, please open an issue or submit a pull request on [GitHub](https://github.com/Helm-Protocol/OpenTTT).
+
+- **Bug reports**: Open an issue with a minimal reproduction case.
+- **Feature requests**: Open an issue describing the use case and expected behavior.
+- **Pull requests**: Fork the repo, make your changes, ensure all tests pass (`npm test`), and open a PR against `main`.
+
+For significant changes, please open an issue first to discuss the approach.
