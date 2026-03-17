@@ -1,0 +1,16 @@
+{
+  "name": "x402-pot-example",
+  "version": "0.1.0",
+  "private": true,
+  "description": "x402 + OpenTTT Proof-of-Time payment example",
+  "scripts": {
+    "start": "ts-node x402_pot_example.ts"
+  },
+  "dependencies": {
+    "openttt": "^0.2.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}
