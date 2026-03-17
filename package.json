@@ -31,7 +31,11 @@
   },
   "files": [
     "dist",
-    "vendor",
+    "!dist/golay.*",
+    "!dist/grg_forward.*",
+    "!dist/grg_inverse.*",
+    "!dist/grg_pipeline.*",
+    "!dist/reed_solomon.*",
     "README.md"
   ],
   "scripts": {
