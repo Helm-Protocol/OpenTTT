@@ -1,12 +1,30 @@
 import type {
   Action,
   ActionExample,
+  ActionResult,
   HandlerCallback,
   IAgentRuntime,
   Memory,
   State,
 } from "@elizaos/core";
 import { getVerifiedTime } from "../providers/timeProvider.js";
+
+// Module-level cache: runtime has no cacheManager in this version of @elizaos/core
+const potCache = new Map<string, { value: string; expiresAt: number }>();
+
+export function potCacheSet(key: string, value: string, ttlSeconds: number): void {
+  potCache.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
+}
+
+export function potCacheGet(key: string): string | null {
+  const entry = potCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    potCache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
 
 export interface PoTToken {
   version: string;
@@ -52,7 +70,7 @@ export const generatePot: Action = {
     _state?: State,
     _options?: Record<string, unknown>,
     callback?: HandlerCallback
-  ): Promise<boolean> => {
+  ): Promise<ActionResult | void | undefined> => {
     try {
       const vt = await getVerifiedTime();
 
@@ -73,12 +91,8 @@ export const generatePot: Action = {
         issued_at: new Date(vt.timestamp).toISOString(),
       };
 
-      // Store PoT in runtime memory for verifyPot to access
-      await runtime.cacheManager?.set(
-        `openttt:pot:${message.id}`,
-        JSON.stringify(pot),
-        { expires: 300 } // 5 minutes
-      );
+      // Store PoT in module-level cache for verifyPot to access (5 min TTL)
+      potCacheSet(`openttt:pot:${message.id}`, JSON.stringify(pot), 300);
 
       const consensusLabel = pot.consensus ? "✓ CONSENSUS" : "⚠ DEGRADED";
       const responseText = [
@@ -102,7 +116,7 @@ export const generatePot: Action = {
         });
       }
 
-      return true;
+      return { success: true, text: responseText, data: { pot } };
     } catch (err) {
       const errorMsg =
         err instanceof Error ? err.message : "Unknown error generating PoT";
@@ -112,34 +126,34 @@ export const generatePot: Action = {
           content: { error: errorMsg },
         });
       }
-      return false;
+      return { success: false, error: errorMsg };
     }
   },
 
   examples: [
     [
       {
-        user: "{{user1}}",
+        name: "{{user1}}",
         content: { text: "Generate a proof of time before I submit this trade" },
       },
       {
-        user: "{{agent}}",
+        name: "{{agent}}",
         content: {
           text: "Proof-of-Time generated successfully.\n\nToken Details:\n  Timestamp : 2026-03-17T07:00:00.000Z\n  Sources   : NIST, Apple, Google, Cloudflare\n  Consensus : ✓ CONSENSUS\n  Deviation : 120ms\n  Nonce     : 6f70656e7474740a...",
-          action: "GENERATE_POT",
+          actions: ["GENERATE_POT"],
         },
       },
     ],
     [
       {
-        user: "{{user1}}",
+        name: "{{user1}}",
         content: { text: "Timestamp this transaction with verified time" },
       },
       {
-        user: "{{agent}}",
+        name: "{{agent}}",
         content: {
           text: "Proof-of-Time generated successfully.",
-          action: "GENERATE_POT",
+          actions: ["GENERATE_POT"],
         },
       },
     ],

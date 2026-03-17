@@ -1,4 +1,4 @@
-import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
+import type { IAgentRuntime, Memory, Provider, ProviderResult, State } from "@elizaos/core";
 
 export interface VerifiedTime {
   timestamp: number;
@@ -88,23 +88,35 @@ export async function getVerifiedTime(): Promise<VerifiedTime> {
  * Sources: NIST, Apple, Google, Cloudflare.
  */
 export const timeProvider: Provider = {
+  name: "TIME_PROVIDER",
+  description: "Provides verified multi-source time (NIST, Apple, Google, Cloudflare) for temporal attestation.",
   get: async (
     _runtime: IAgentRuntime,
     _message: Memory,
-    _state?: State
-  ): Promise<any> => {
+    _state: State
+  ): Promise<ProviderResult> => {
     const vt = await getVerifiedTime();
 
     const iso = new Date(vt.timestamp).toISOString();
     const sourceList = vt.sources.join(", ");
     const consensusLabel = vt.consensus ? "CONSENSUS" : "DEGRADED";
 
-    return [
-      `[OpenTTT TimeProvider]`,
-      `Verified Time: ${iso}`,
-      `Sources: ${sourceList}`,
-      `Consensus: ${consensusLabel}`,
-      `Max Deviation: ${vt.deviation_ms}ms`,
-    ].join("\n");
+    return {
+      text: [
+        `[OpenTTT TimeProvider]`,
+        `Verified Time: ${iso}`,
+        `Sources: ${sourceList}`,
+        `Consensus: ${consensusLabel}`,
+        `Max Deviation: ${vt.deviation_ms}ms`,
+      ].join("\n"),
+      values: {
+        verifiedTimestamp: vt.timestamp,
+        verifiedTimeIso: iso,
+        timeSources: sourceList,
+        timeConsensus: consensusLabel,
+        timeDeviationMs: vt.deviation_ms,
+      },
+      data: { verifiedTime: vt },
+    };
   },
 };
