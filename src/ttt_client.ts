@@ -6,6 +6,7 @@ import { logger } from "./logger";
 import { PoolRegistry } from "./pool_registry";
 import { NETWORKS, NetworkConfig } from "./networks";
 import { createSigner } from "./signer";
+import { HttpOnlyClient, HttpOnlyClientOptions } from "./http_client";
 
 // Re-export HealthStatus from types for backward compatibility
 export { HealthStatus } from "./types";
@@ -89,6 +90,26 @@ export class TTTClient extends EventEmitter {
    */
   static async forSepolia(config: Omit<TTTClientConfig, 'network'>): Promise<TTTClient> {
     return this.create({ ...config, network: 'sepolia' });
+  }
+
+  /**
+   * Zero-friction sandbox mode — no ETH, no signer, no on-chain interaction.
+   *
+   * Returns an HttpOnlyClient that fetches verified time from NIST, Apple,
+   * Google, and Cloudflare HTTPS endpoints and produces HMAC-signed PoTs.
+   *
+   * @example
+   * // Zero-friction: no wallet, no RPC, no gas
+   * const client = TTTClient.httpOnly();
+   * const pot = await client.generatePoT();
+   * console.log(pot.timestamp, pot.confidence);
+   *
+   * // Verify locally (no on-chain check needed)
+   * const result = client.verifyPoT(pot);
+   * console.log(result.valid); // true
+   */
+  static httpOnly(options?: HttpOnlyClientOptions): HttpOnlyClient {
+    return new HttpOnlyClient(options);
   }
 
   /**

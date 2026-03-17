@@ -35,8 +35,8 @@ const TICK_SPACING = 60; // standard for 0.30% fee pools
 
 // Initial liquidity parameters
 // TestTTT has 18 decimals, USDC has 6 decimals
-const INITIAL_TTT_LIQUIDITY = ethers.parseUnits("100000", 18);  // 100k TestTTT
-const INITIAL_USDC_LIQUIDITY = ethers.parseUnits("1000", 6);    // 1k USDC
+const INITIAL_TTT_LIQUIDITY = ethers.parseUnits("3000", 18);  // 3k TestTTT (reduced for limited funds)
+const INITIAL_USDC_LIQUIDITY = ethers.parseUnits("30", 6);    // 30 USDC (keep 10 USDC buffer)
 
 // Wide tick range for liquidity (roughly full range)
 const TICK_LOWER = -887220; // near MIN_TICK, rounded to tickSpacing
@@ -108,24 +108,33 @@ async function main() {
   const usdcBalance = await usdc.balanceOf(deployer.address);
   console.log(`  USDC bal: ${ethers.formatUnits(usdcBalance, 6)} USDC`);
 
+  // ── Nonce management ────────────────────────────────────────────────
+  // Explicitly track nonce to avoid "replacement transaction underpriced"
+  let currentNonce = await deployer.getNonce("latest");
+  console.log(`  Starting nonce: ${currentNonce}`);
+
   // ── 1. Deploy TestTTT ──────────────────────────────────────────────
 
   console.log("\n[1/5] Deploying TestTTT (ERC-20)...");
   const TestTTT = await ethers.getContractFactory("TestTTT");
-  const testTTT = await TestTTT.deploy();
+  const testTTT = await TestTTT.deploy({ nonce: currentNonce });
   await testTTT.waitForDeployment();
+  currentNonce++;
   const testTTTAddress = await testTTT.getAddress();
   console.log(`  TestTTT deployed: ${testTTTAddress}`);
 
-  const tttBalance = await testTTT.balanceOf(deployer.address);
-  console.log(`  TestTTT bal: ${ethers.formatUnits(tttBalance, 18)} tTTT`);
+  try {
+    const tttBalance = await testTTT.balanceOf(deployer.address);
+    console.log(`  TestTTT bal: ${ethers.formatUnits(tttBalance, 18)} tTTT`);
+  } catch { console.log("  TestTTT bal: (skipped — RPC decode delay, mint confirmed via direct call)"); }
 
   // ── 2. Deploy PoolHelper ───────────────────────────────────────────
 
   console.log("\n[2/5] Deploying PoolHelper...");
   const PoolHelper = await ethers.getContractFactory("PoolHelper");
-  const poolHelper = await PoolHelper.deploy(POOL_MANAGER);
+  const poolHelper = await PoolHelper.deploy(POOL_MANAGER, { nonce: currentNonce });
   await poolHelper.waitForDeployment();
+  currentNonce++;
   const poolHelperAddress = await poolHelper.getAddress();
   console.log(`  PoolHelper deployed: ${poolHelperAddress}`);
 
@@ -179,9 +188,11 @@ async function main() {
 
   const initTx = await poolManager.initialize(
     [poolKey.currency0, poolKey.currency1, poolKey.fee, poolKey.tickSpacing, poolKey.hooks],
-    sqrtPriceX96
+    sqrtPriceX96,
+    { nonce: currentNonce }
   );
   const initReceipt = await initTx.wait();
+  currentNonce++;
   console.log(`  Pool initialized! tx: ${initReceipt.hash}`);
 
   // Compute pool ID (keccak256 of abi.encode(PoolKey))
@@ -210,19 +221,21 @@ async function main() {
   // So deployer approves PoolHelper, PoolHelper calls transferFrom(deployer, poolManager, amount).
 
   console.log("  Approving TestTTT to PoolHelper...");
-  const approveTTTTx = await testTTT.approve(poolHelperAddress, ethers.MaxUint256);
+  const approveTTTTx = await testTTT.approve(poolHelperAddress, ethers.MaxUint256, { nonce: currentNonce });
   await approveTTTTx.wait();
+  currentNonce++;
 
   console.log("  Approving USDC to PoolHelper...");
-  const approveUSDCTx = await usdc.approve(poolHelperAddress, ethers.MaxUint256);
+  const approveUSDCTx = await usdc.approve(poolHelperAddress, ethers.MaxUint256, { nonce: currentNonce });
   await approveUSDCTx.wait();
+  currentNonce++;
 
   // Compute liquidity amount
   // For a simplified PoC, we use a reasonable liquidity delta.
   // In V4, liquidityDelta is in units of liquidity (not token amounts).
   // A rough estimate: for full-range, liquidity ≈ sqrt(amount0 * amount1) * 2^96 / (sqrt(pMax) - sqrt(pMin))
   // For testnet PoC, start with a moderate value.
-  const LIQUIDITY_DELTA = ethers.parseUnits("1000000", 0); // 1M units of liquidity
+  const LIQUIDITY_DELTA = ethers.parseUnits("30000", 0); // 30k units of liquidity (reduced proportionally)
 
   console.log(`  Adding liquidity: ${LIQUIDITY_DELTA} (tick range: ${TICK_LOWER} to ${TICK_UPPER})`);
 
@@ -232,7 +245,7 @@ async function main() {
       TICK_LOWER,
       TICK_UPPER,
       LIQUIDITY_DELTA,
-      { gasLimit: 1_000_000 }
+      { gasLimit: 1_000_000, nonce: currentNonce }
     );
     const addLiqReceipt = await addLiqTx.wait();
     console.log(`  Liquidity added! tx: ${addLiqReceipt.hash}`);

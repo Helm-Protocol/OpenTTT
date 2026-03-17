@@ -885,7 +885,7 @@ Table of Contents
    A single entity controlling multiple NTP servers could fabricate
    a consistent false timestamp across "multiple" sources.
    Implementations SHOULD use sources from distinct administrative
-   domains (e.g., NIST, KRISS, Google, Cloudflare) with verified
+   domains (e.g., NIST, Apple, Google, Cloudflare) with verified
    different operators.
 
 

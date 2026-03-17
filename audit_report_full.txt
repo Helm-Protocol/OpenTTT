@@ -56,7 +56,7 @@ Golomb-Rice 압축 효과 주의
 Golomb-Rice는 편향분포 데이터(작은 수 위주)에 효과적. 균등분포 바이트(일반 블록 데이터)에 적용하면 평균 12비트/바이트 → 원본 8비트보다 50% 팽창. GRG 파이프라인의 "압축" 역할이 실제로는 압축이 아님. 타임스탬프 델타처럼 작은 값이 주를 이루는 경우에만 효과적.
 TLS/HTTPS급 공개 기준 체크리스트
 PASS
-다중 신뢰 앵커 (NIST, KRISS, Google NTP)
+다중 신뢰 앵커 (NIST, Apple, Google NTP)
 3개 독립 소스 median 합성. CA 분산과 유사한 구조.
 FAIL
 전송 레이어 인증 (TLS의 핵심)

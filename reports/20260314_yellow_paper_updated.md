@@ -83,7 +83,7 @@ const ttt = await TTTClient.create({
   signer: { type: 'kms', provider: 'aws', keyId: 'arn:aws:kms:...', region: 'us-east-1' },
   network: { chainId: 8453, rpcUrl: '...', tttAddress: '0x...', protocolFeeAddress: '0x...', usdcAddress: '0x...' },
   tier: 'T3_micro',
-  timeSources: ['nist', 'kriss', 'google'],
+  timeSources: ['nist', 'apple', 'google'],
   protocolFeeRate: 0.05,
   fallbackPriceUsd: 10000n,
   poolAddress: '0x...',
@@ -163,7 +163,7 @@ This is an off-chain simulation/validation layer. The on-chain Solidity hook (im
 | Source | Host | Authority |
 |--------|------|-----------|
 | NIST | `time.nist.gov` | US National Institute of Standards |
-| KRISS | `time.kriss.re.kr` | Korea Research Institute of Standards |
+| Apple | `time.apple.com` | Apple Inc. |
 | Google | `time.google.com` | Google Public NTP |
 
 **Synthesis algorithm**:
@@ -406,7 +406,7 @@ Agent
 
 ### Synthetic API #4: TTT x TTT — Cross-Protocol PoT Consensus
 
-Multiple protocols running OpenTTT independently. Their PoTs reference the same NTP sources (NIST, KRISS, Google). Cross-protocol temporal consistency becomes verifiable.
+Multiple protocols running OpenTTT independently. Their PoTs reference the same NTP sources (NIST, Apple, Google). Cross-protocol temporal consistency becomes verifiable.
 
 **New value**: Distributed time consensus without a shared sequencer.
 
@@ -750,7 +750,7 @@ That is the Hyper-Turing point.
 *License: BSL-1.1 (Business Source License)*
 
 ```
-TTT = T(Time, NIST/KRISS/Google NTP +/- 10ns)
+TTT = T(Time, NIST/Apple/Google NTP +/- 10ns)
     + L(Logic, AdaptiveSwitch TURBO/FULL Nash Equilibrium)
     + S(Sync, GRG Golomb-Rice + Reed-Solomon + Golay + HMAC-SHA256)
 

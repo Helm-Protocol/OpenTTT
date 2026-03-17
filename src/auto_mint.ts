@@ -254,7 +254,7 @@ export class AutoMintEngine {
     // 3. Fee calculation
     const feeCalculation = await this.feeEngine.calculateMintFee(this.config.tier);
     
-    // 4. EVM mint call — run full GRG pipeline (Golomb → Reed-Solomon → Golay+HMAC)
+    // 4. EVM mint call — run GRG integrity pipeline
     const grgPayload = ethers.AbiCoder.defaultAbiCoder().encode(
       ["bytes32", "bytes32", "uint64", "uint8"],
       [tokenId, potHash, synthesized.timestamp, pot.sources]
