@@ -1,12 +1,14 @@
 import type {
   Action,
   ActionExample,
+  ActionResult,
   HandlerCallback,
   IAgentRuntime,
   Memory,
   State,
 } from "@elizaos/core";
 import type { PoTToken } from "./generatePot.js";
+import { potCacheGet } from "./generatePot.js";
 import { getVerifiedTime } from "../providers/timeProvider.js";
 
 export interface VerifyResult {
@@ -46,12 +48,12 @@ export const verifyPot: Action = {
   },
 
   handler: async (
-    runtime: IAgentRuntime,
+    _runtime: IAgentRuntime,
     message: Memory,
     _state?: State,
     options?: Record<string, unknown>,
     callback?: HandlerCallback
-  ): Promise<boolean> => {
+  ): Promise<ActionResult | void | undefined> => {
     try {
       // Accept pot passed directly in options, or look up by message id
       let pot: PoTToken | null = null;
@@ -61,9 +63,7 @@ export const verifyPot: Action = {
       } else {
         // Look up the PoT cached during generatePot for this message thread
         const targetId = (options?.message_id as string) ?? message.id;
-        const cached = await runtime.cacheManager?.get<string>(
-          `openttt:pot:${targetId}`
-        );
+        const cached = potCacheGet(`openttt:pot:${targetId}`);
         if (cached) {
           try {
             pot = JSON.parse(cached) as PoTToken;
@@ -84,7 +84,7 @@ export const verifyPot: Action = {
             content: { result },
           });
         }
-        return false;
+        return { success: false, error: result.reason, data: { result } };
       }
 
       // Check age
@@ -105,7 +105,7 @@ export const verifyPot: Action = {
             content: { result },
           });
         }
-        return false;
+        return { success: false, error: result.reason, data: { result } };
       }
 
       if (age_ms < 0) {
@@ -122,7 +122,7 @@ export const verifyPot: Action = {
             content: { result },
           });
         }
-        return false;
+        return { success: false, error: result.reason, data: { result } };
       }
 
       // Warn if consensus was degraded at issuance
@@ -160,7 +160,7 @@ export const verifyPot: Action = {
         });
       }
 
-      return true;
+      return { success: true, text: responseText, data: { result } };
     } catch (err) {
       const errorMsg =
         err instanceof Error ? err.message : "Unknown error verifying PoT";
@@ -170,34 +170,34 @@ export const verifyPot: Action = {
           content: { error: errorMsg },
         });
       }
-      return false;
+      return { success: false, error: errorMsg };
     }
   },
 
   examples: [
     [
       {
-        user: "{{user1}}",
+        name: "{{user1}}",
         content: { text: "Verify the proof of time for my last transaction" },
       },
       {
-        user: "{{agent}}",
+        name: "{{agent}}",
         content: {
           text: "Proof-of-Time verification PASSED.\n\nToken Summary:\n  Issued    : 2026-03-17T07:00:00.000Z\n  Age       : 12s\n  Sources   : NIST, Apple, Google, Cloudflare\n  Consensus : ✓ CONSENSUS\n  Deviation : 120ms",
-          action: "VERIFY_POT",
+          actions: ["VERIFY_POT"],
         },
       },
     ],
     [
       {
-        user: "{{user1}}",
+        name: "{{user1}}",
         content: { text: "Check if the time attestation on this trade is valid" },
       },
       {
-        user: "{{agent}}",
+        name: "{{agent}}",
         content: {
           text: "Proof-of-Time verification PASSED.",
-          action: "VERIFY_POT",
+          actions: ["VERIFY_POT"],
         },
       },
     ],

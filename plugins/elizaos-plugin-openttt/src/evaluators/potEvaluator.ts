@@ -1,9 +1,11 @@
 import type {
+  ActionResult,
   Evaluator,
   IAgentRuntime,
   Memory,
   State,
 } from "@elizaos/core";
+import { potCacheGet } from "../actions/generatePot.js";
 
 /**
  * Evaluates whether recent agent actions have adequate Proof-of-Time coverage.
@@ -30,15 +32,13 @@ export const potEvaluator: Evaluator = {
   },
 
   handler: async (
-    runtime: IAgentRuntime,
+    _runtime: IAgentRuntime,
     message: Memory,
     _state?: State
-  ): Promise<void> => {
-    // Check if a PoT was generated for this message
+  ): Promise<ActionResult | void | undefined> => {
+    // Check if a PoT was generated for this message using module-level cache
     const potKey = `openttt:pot:${message.id}`;
-    // runtime might not have cacheManager directly if it's an older or different version, 
-    // or it's accessible via runtime.getService(ServiceType.CACHE)
-    const cached = await runtime.getService?.("cache")?.get<string>(potKey);
+    const cached = potCacheGet(potKey);
 
     if (cached) {
       try {
@@ -53,6 +53,7 @@ export const potEvaluator: Evaluator = {
           `Issued: ${ageLabel}, Sources: ${pot.sources.join(", ")}, ` +
           `Consensus: ${pot.consensus ? "YES" : "DEGRADED"}.`
         );
+        return;
       } catch {
         // fall through to missing case
       }
@@ -67,10 +68,10 @@ export const potEvaluator: Evaluator = {
 
   examples: [
     {
-      context: "Agent is about to submit a swap transaction",
+      prompt: "Agent is about to submit a swap transaction",
       messages: [
         {
-          user: "user1",
+          name: "user1",
           content: { text: "Execute the swap for 1 ETH to USDC" },
         },
       ],
@@ -78,10 +79,10 @@ export const potEvaluator: Evaluator = {
         "[POT_COVERAGE_EVALUATOR] ⚠ No Proof-of-Time found for this transaction.",
     },
     {
-      context: "Agent generated PoT before trade",
+      prompt: "Agent generated PoT before trade",
       messages: [
         {
-          user: "user1",
+          name: "user1",
           content: { text: "Submit the buy order" },
         },
       ],
