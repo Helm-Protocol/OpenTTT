@@ -7,7 +7,7 @@ const dynamic_fee_1 = require("./dynamic_fee");
 const evm_connector_1 = require("./evm_connector");
 const protocol_fee_1 = require("./protocol_fee");
 const pot_signer_1 = require("./pot_signer");
-const helm_crypto_1 = require("../vendor/helm-crypto");
+const grg_forward_1 = require("./grg_forward");
 const types_1 = require("./types");
 const logger_1 = require("./logger");
 const errors_1 = require("./errors");
@@ -223,7 +223,7 @@ class AutoMintEngine {
         // 4. EVM mint call — run GRG integrity pipeline
         const grgPayload = ethers_1.ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "bytes32", "uint64", "uint8"], [tokenId, potHash, synthesized.timestamp, pot.sources]);
         const grgStart = Date.now();
-        const grgShards = helm_crypto_1.IntegrityEncoder.encode(ethers_1.ethers.getBytes(grgPayload), this.config.chainId, this.config.poolAddress);
+        const grgShards = grg_forward_1.GrgForward.encode(ethers_1.ethers.getBytes(grgPayload), this.config.chainId, this.config.poolAddress);
         const grgElapsed = Date.now() - grgStart;
         logger_1.logger.info(`[AutoMint] GRG pipeline completed in ${grgElapsed}ms`);
         if (grgElapsed > 50 && !this.warnedGrgSlow) {
