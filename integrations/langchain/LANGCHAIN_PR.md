@@ -127,7 +127,7 @@ const tool = new VerifyProofOfTimeTool({
 The underlying `openttt` SDK has 112 tests passing:
 
 - `TimeSynthesis` -- Multi-source time generation, median synthesis, uncertainty calculation
-- `GrgPipeline` -- Multi-layer forward/inverse data integrity pipeline
+- `IntegrityPipeline` -- Multi-layer forward/inverse data integrity pipeline
 - `PotSigner` -- Ed25519 key generation, signing, verification
 - `AdaptiveSwitch` -- Turbo/full mode switching based on sequence integrity
 - `TTTClient` -- End-to-end PoT generation and verification

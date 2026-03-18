@@ -20,3 +20,4 @@ export * from "./pot_signer";
 export * from "./ct_log";
 export * from "./trust_store";
 export * from "./revenue_tiers";
+export * from "./integrity_client";

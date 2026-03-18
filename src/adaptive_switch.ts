@@ -1,7 +1,7 @@
 // sdk/src/adaptive_switch.ts — Adaptive Mode Switcher
 // Turbo (50ms) vs Full (127ms)
 
-import { GrgInverse } from "../vendor/helm-crypto";
+import { IntegrityDecoder as GrgInverse } from "../vendor/helm-crypto";
 import { logger } from "./logger";
 
 export enum AdaptiveMode {
