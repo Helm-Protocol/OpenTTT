@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "langchain-openttt"
+version = "0.1.0"
+description = "Proof-of-Time tools for LangChain agents — Byzantine-resistant temporal attestation for DeFi transactions"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+    "httpx>=0.24",
+    "langchain-core>=0.1",
+    "pydantic>=2.0",
+]
+keywords = ["langchain", "defi", "mev", "proof-of-time", "blockchain", "temporal-attestation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/Helm-Protocol/OpenTTT"
+Repository = "https://github.com/Helm-Protocol/OpenTTT"
+Issues = "https://github.com/Helm-Protocol/OpenTTT/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["langchain_openttt*"]
