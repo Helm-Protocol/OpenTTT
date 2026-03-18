@@ -3,7 +3,7 @@
 // Turbo (50ms) vs Full (127ms)
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdaptiveSwitch = exports.TIER_TOLERANCE_MS = exports.AdaptiveMode = void 0;
-const helm_crypto_1 = require("../vendor/helm-crypto");
+const grg_inverse_1 = require("./grg_inverse");
 const logger_1 = require("./logger");
 var AdaptiveMode;
 (function (AdaptiveMode) {
@@ -43,7 +43,7 @@ class AdaptiveSwitch {
         let sequenceOk = orderMatch && timeMatch;
         // B1-1: Do not skip GrgInverse.verify() in TURBO mode
         // We check integrity regardless of mode
-        const integrityOk = helm_crypto_1.IntegrityDecoder.verify(block.data, tttRecord.grgPayload, chainId, poolAddress);
+        const integrityOk = grg_inverse_1.GrgInverse.verify(block.data, tttRecord.grgPayload, chainId, poolAddress);
         if (!integrityOk) {
             logger_1.logger.error(`[AdaptiveSwitch] GRG integrity check FAILED`);
             sequenceOk = false; // Mark as false if integrity fails
