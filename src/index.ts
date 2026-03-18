@@ -1,5 +1,7 @@
 // sdk/src/index.ts
-export * from "../vendor/helm-crypto";
+export * from "./grg_forward";
+export * from "./grg_inverse";
+export * from "./grg_pipeline";
 export * from "./adaptive_switch";
 export * from "./evm_connector";
 export * from "./x402_enforcer";
