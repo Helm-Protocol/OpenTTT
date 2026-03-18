@@ -1,0 +1,22 @@
+{
+  "network": "baseSepolia",
+  "chainId": "84532",
+  "deployer": "0x98603D935b6Ba2472a7cb48308e801F7ab6287f7",
+  "contracts": {
+    "testTTT": "0x96B8DF1ED862e99b04d7478E5DF090B1Ef03Ec1D",
+    "poolHelper": "0xBA0810d8aC9D06c38F99F09b5B29DfB9D037De79",
+    "poolManager": "0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408",
+    "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "tttHookSimple": "0x8C633b05b833a476925F7d9818da6E215760F2c7",
+    "ttt1155": "0xde357135cA493e59680182CDE9E1c6A4dA400811"
+  },
+  "poolKey": {
+    "currency0": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "currency1": "0x96B8DF1ED862e99b04d7478E5DF090B1Ef03Ec1D",
+    "fee": 3000,
+    "tickSpacing": 60,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "poolId": "0x901f76c0fca9d171688a530da068756b4b16866170c5ea10519d2a725041527c",
+  "timestamp": "2026-03-15T14:21:29.391Z"
+}

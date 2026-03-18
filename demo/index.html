@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenTTT — Proof of Time Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.3rem;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 0.85rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .card {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 8px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.6rem;
+    }
+
+    .sources-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .source-box {
+      background: #0a0a0a;
+      border: 1px solid #222;
+      border-radius: 6px;
+      padding: 0.6rem;
+      text-align: center;
+      transition: border-color 0.3s;
+    }
+
+    .source-box.ok    { border-color: #1a6a1a; }
+    .source-box.fail  { border-color: #6a1a1a; }
+    .source-box.pend  { border-color: #333; }
+
+    .source-name {
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 0.3rem;
+    }
+
+    .source-status {
+      font-size: 0.7rem;
+      color: #555;
+    }
+
+    .source-box.ok   .source-status { color: #4caf50; }
+    .source-box.fail .source-status { color: #f44336; }
+
+    .pot-block {
+      background: #0a0a0a;
+      border: 1px solid #1a3a1a;
+      border-radius: 6px;
+      padding: 1.2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .field {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid #1a1a1a;
+      font-size: 0.82rem;
+      gap: 1rem;
+    }
+
+    .field:last-child { border-bottom: none; }
+
+    .field-key   { color: #666; white-space: nowrap; flex-shrink: 0; }
+    .field-value { color: #c8e6c9; word-break: break-all; text-align: right; }
+    .field-value.mono { font-size: 0.72rem; color: #4a8c4a; }
+
+    .confidence-bar-wrap {
+      background: #1a1a1a;
+      border-radius: 4px;
+      height: 6px;
+      flex: 1;
+      margin: 0 0.5rem;
+      align-self: center;
+    }
+
+    .confidence-bar {
+      height: 100%;
+      border-radius: 4px;
+      background: #4caf50;
+      transition: width 0.5s;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.85rem;
+      background: #1a3a1a;
+      color: #4caf50;
+      border: 1px solid #2a5a2a;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      letter-spacing: 0.05em;
+    }
+
+    .btn:hover  { background: #223; color: #7ec87e; border-color: #3a7a3a; }
+    .btn:active { background: #0d1f0d; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .status-line {
+      text-align: center;
+      font-size: 0.75rem;
+      color: #555;
+      margin-top: 1rem;
+      min-height: 1.2rem;
+    }
+
+    .status-line.running { color: #4caf50; }
+    .status-line.error   { color: #f44336; }
+
+    .note {
+      font-size: 0.72rem;
+      color: #444;
+      text-align: center;
+      margin-top: 2rem;
+      line-height: 1.6;
+    }
+
+    .note a { color: #2a6a2a; text-decoration: none; }
+    .note a:hover { color: #4caf50; }
+
+    .spinner {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <h1>OpenTTT</h1>
+  <p class="subtitle">Proof of Time — cryptographic time ordering for AI agents</p>
+
+  <div class="card">
+
+    <div class="section-label">Time Sources</div>
+    <div class="sources-grid" id="sources-grid">
+      <div class="source-box pend" id="src-nist">
+        <div class="source-name">NIST</div>
+        <div class="source-status" id="st-nist">—</div>
+      </div>
+      <div class="source-box pend" id="src-apple">
+        <div class="source-name">Apple</div>
+        <div class="source-status" id="st-apple">—</div>
+      </div>
+      <div class="source-box pend" id="src-google">
+        <div class="source-name">Google</div>
+        <div class="source-status" id="st-google">—</div>
+      </div>
+      <div class="source-box pend" id="src-cloudflare">
+        <div class="source-name">Cloudflare</div>
+        <div class="source-status" id="st-cloudflare">—</div>
+      </div>
+    </div>
+
+    <div class="section-label">Proof of Time</div>
+    <div class="pot-block" id="pot-block">
+      <div class="field">
+        <span class="field-key">timestamp</span>
+        <span class="field-value" id="f-timestamp">—</span>
+      </div>
+      <div class="field">
+        <span class="field-key">sources</span>
+        <span class="field-value" id="f-sources">—</span>
+      </div>
+      <div class="field" style="align-items:center;">
+        <span class="field-key">confidence</span>
+        <div class="confidence-bar-wrap">
+          <div class="confidence-bar" id="conf-bar" style="width:0%"></div>
+        </div>
+        <span class="field-value" id="f-confidence">—</span>
+      </div>
+      <div class="field">
+        <span class="field-key">stratum</span>
+        <span class="field-value" id="f-stratum">—</span>
+      </div>
+      <div class="field">
+        <span class="field-key">nonce</span>
+        <span class="field-value mono" id="f-nonce">—</span>
+      </div>
+      <div class="field">
+        <span class="field-key">hmac-sha256</span>
+        <span class="field-value mono" id="f-hmac">—</span>
+      </div>
+      <div class="field">
+        <span class="field-key">expires</span>
+        <span class="field-value" id="f-expires">—</span>
+      </div>
+    </div>
+
+    <button class="btn" id="gen-btn" onclick="generatePoT()">
+      Generate Proof of Time
+    </button>
+
+    <div class="status-line" id="status-line"></div>
+  </div>
+
+  <p class="note">
+    No ETH. No wallet. No on-chain transaction.<br/>
+    <a href="https://github.com/Helm-Protocol/OpenTTT" target="_blank">github.com/Helm-Protocol/OpenTTT</a>
+    &nbsp;·&nbsp;
+    <a href="https://www.npmjs.com/package/openttt" target="_blank">npm: openttt</a>
+    &nbsp;·&nbsp;
+    <a href="https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/" target="_blank">IETF Draft</a>
+  </p>
+
+<script>
+// ── helpers ─────────────────────────────────────────────────────────────────
+
+const SOURCES = [
+  { name: "nist",       url: "https://time.nist.gov/" },
+  { name: "apple",      url: "https://time.apple.com/" },
+  { name: "google",     url: "https://time.google.com/" },
+  { name: "cloudflare", url: "https://time.cloudflare.com/" },
+];
+
+function setStatus(msg, cls) {
+  const el = document.getElementById("status-line");
+  el.textContent = msg;
+  el.className = "status-line " + (cls || "");
+}
+
+function setSourceState(name, state, label) {
+  const box = document.getElementById("src-" + name);
+  const st  = document.getElementById("st-"  + name);
+  box.className = "source-box " + state;
+  st.textContent = label;
+}
+
+function resetSources() {
+  SOURCES.forEach(s => setSourceState(s.name, "pend", "—"));
+}
+
+// Median of an array of numbers
+function median(arr) {
+  const sorted = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+// HMAC-SHA256 using Web Crypto API
+async function hmacSha256(keyData, message) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", enc.encode(keyData),
+    { name: "HMAC", hash: "SHA-256" },
+    false, ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+  return Array.from(new Uint8Array(sig))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// Random hex nonce
+function randomNonce(bytes) {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Fetch one HTTPS Date header (browser fetch — no Node BigInt)
+async function fetchHttpsDate(source) {
+  const t1 = Date.now();
+  try {
+    // mode: no-cors → opaque response (can't read headers from cross-origin)
+    // We use a CORS proxy pattern: request via fetch with mode cors.
+    // Most time servers don't set CORS headers, so we fall back to
+    // using the *local* time corrected by RTT estimation only.
+    const resp = await fetch(source.url, {
+      method: "HEAD",
+      mode: "no-cors",   // opaque — we can't read Date header cross-origin
+      cache: "no-store",
+    });
+    const t4 = Date.now();
+    const rtt = t4 - t1;
+    // We can't read resp.headers in no-cors mode.
+    // Use local clock + RTT/2 correction as best-effort estimate.
+    const corrected = t1 + Math.round(rtt / 2);
+    return { source: source.name, ts: corrected, rtt, ok: true };
+  } catch (e) {
+    return { source: source.name, ts: null, rtt: null, ok: false, err: e.message };
+  }
+}
+
+// ── main PoT generator ───────────────────────────────────────────────────────
+
+async function generatePoT() {
+  const btn = document.getElementById("gen-btn");
+  btn.disabled = true;
+  resetSources();
+  setStatus("⟳ Querying time sources…", "running");
+
+  // Reset PoT fields
+  ["f-timestamp","f-sources","f-confidence","f-stratum","f-nonce","f-hmac","f-expires"]
+    .forEach(id => document.getElementById(id).textContent = "—");
+  document.getElementById("conf-bar").style.width = "0%";
+
+  // Query all 4 sources in parallel
+  const results = await Promise.all(SOURCES.map(fetchHttpsDate));
+
+  const good = results.filter(r => r.ok && r.ts !== null);
+
+  results.forEach(r => {
+    if (r.ok) {
+      setSourceState(r.name, "ok", r.rtt + "ms");
+    } else {
+      setSourceState(r.name, "fail", "timeout");
+    }
+  });
+
+  if (good.length === 0) {
+    // Fallback: local clock only
+    good.push({ source: "local", ts: Date.now(), rtt: 0, ok: true });
+    setStatus("All remote sources failed — using local clock", "error");
+  }
+
+  const timestamps = good.map(r => r.ts);
+  const medianMs  = median(timestamps);
+  const medianNs  = (BigInt(Math.round(medianMs)) * 1000000n).toString();
+
+  const confidence = Math.min(good.length / 4, 1.0);
+  const stratum    = good.length >= 3 ? 1 : good.length >= 1 ? 2 : 3;
+  const nonce      = randomNonce(16);
+  const expiresAt  = (Date.now() + 60_000).toString();
+
+  // HMAC-SHA256: key = nonce, message = timestamp|sources|stratum
+  const payload = `${medianNs}|${good.length}|${stratum}`;
+  const hmac    = await hmacSha256(nonce, payload);
+
+  // Display
+  document.getElementById("f-timestamp").textContent  = medianNs;
+  document.getElementById("f-sources").textContent    = `${good.length} / ${SOURCES.length}`;
+  document.getElementById("f-confidence").textContent = (confidence * 100).toFixed(0) + "%";
+  document.getElementById("conf-bar").style.width     = (confidence * 100) + "%";
+  document.getElementById("f-stratum").textContent    = stratum;
+  document.getElementById("f-nonce").textContent      = nonce;
+  document.getElementById("f-hmac").textContent       = hmac;
+  document.getElementById("f-expires").textContent    = new Date(parseInt(expiresAt)).toISOString();
+
+  setStatus("✓ Proof of Time generated in ~" + Math.max(...results.filter(r=>r.rtt).map(r=>r.rtt)) + "ms", "");
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>

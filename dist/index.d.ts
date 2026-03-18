@@ -9,6 +9,7 @@ export * from "./v4_hook";
 export * from "./logger";
 export * from "./types";
 export * from "./ttt_client";
+export * from "./http_client";
 export * from "./auto_mint";
 export * from "./time_synthesis";
 export * from "./dynamic_fee";

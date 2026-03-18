@@ -61,14 +61,30 @@ export const verifyPot: Action = {
       if (options?.pot && typeof options.pot === "object") {
         pot = options.pot as PoTToken;
       } else {
-        // Look up the PoT cached during generatePot for this message thread
-        const targetId = (options?.message_id as string) ?? message.id;
-        const cached = potCacheGet(`openttt:pot:${targetId}`);
-        if (cached) {
-          try {
-            pot = JSON.parse(cached) as PoTToken;
-          } catch {
-            pot = null;
+        // Issue 1 fix: look up by potHash first, then fall back to last-generated pointer
+        const potHashArg = options?.pot_hash as string | undefined;
+        // Try to extract potHash from message text (e.g. "verify pot abc123")
+        const textMatch = (message.content?.text as string ?? "").match(/\b([0-9a-f]{32,})\b/i);
+        const potHashFromText = textMatch?.[1];
+
+        const resolvedHash = potHashArg ?? potHashFromText;
+
+        if (resolvedHash) {
+          const cached = potCacheGet(`openttt:pot:${resolvedHash}`);
+          if (cached) {
+            try { pot = JSON.parse(cached) as PoTToken; } catch { pot = null; }
+          }
+        }
+
+        // Fall back to last-generated pointer for this agent
+        if (!pot) {
+          const agentId = (_runtime.agentId ?? "unknown") as string;
+          const lastHash = potCacheGet(`openttt:last:${agentId}`);
+          if (lastHash) {
+            const cached = potCacheGet(`openttt:pot:${lastHash}`);
+            if (cached) {
+              try { pot = JSON.parse(cached) as PoTToken; } catch { pot = null; }
+            }
           }
         }
       }

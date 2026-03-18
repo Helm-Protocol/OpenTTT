@@ -119,6 +119,12 @@ Consensus is reached when all responding sources agree within 2 seconds.
 If fewer than 2 sources respond, the plugin falls back to local system time
 and sets `consensus: false`.
 
+> **Precision disclaimer:** HTTP `Date` headers provide approximately
+> **1-second precision**. This is sufficient for trade-ordering attestation
+> at human timescales. For sub-second ordering guarantees (e.g. high-frequency
+> MEV sequencing), use the full OpenTTT SDK with on-chain anchoring instead
+> of this HTTP-based provider.
+
 ## License
 
 MIT — see [LICENSE](../../LICENSE)

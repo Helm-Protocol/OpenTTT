@@ -9,6 +9,7 @@ const logger_1 = require("./logger");
 const pool_registry_1 = require("./pool_registry");
 const networks_1 = require("./networks");
 const signer_1 = require("./signer");
+const http_client_1 = require("./http_client");
 /**
  * TTTClient - SDK entry point for DEX operators.
  * Initializes all internal modules and manages the auto-minting process.
@@ -69,6 +70,25 @@ class TTTClient extends events_1.EventEmitter {
      */
     static async forSepolia(config) {
         return this.create({ ...config, network: 'sepolia' });
+    }
+    /**
+     * Zero-friction sandbox mode — no ETH, no signer, no on-chain interaction.
+     *
+     * Returns an HttpOnlyClient that fetches verified time from NIST, Apple,
+     * Google, and Cloudflare HTTPS endpoints and produces HMAC-signed PoTs.
+     *
+     * @example
+     * // Zero-friction: no wallet, no RPC, no gas
+     * const client = TTTClient.httpOnly();
+     * const pot = await client.generatePoT();
+     * console.log(pot.timestamp, pot.confidence);
+     *
+     * // Verify locally (no on-chain check needed)
+     * const result = client.verifyPoT(pot);
+     * console.log(result.valid); // true
+     */
+    static httpOnly(options) {
+        return new http_client_1.HttpOnlyClient(options);
     }
     /**
      * Universal factory to create and initialize a client
