@@ -43,7 +43,7 @@ class AdaptiveSwitch {
         let sequenceOk = orderMatch && timeMatch;
         // B1-1: Do not skip GrgInverse.verify() in TURBO mode
         // We check integrity regardless of mode
-        const integrityOk = helm_crypto_1.GrgInverse.verify(block.data, tttRecord.grgPayload, chainId, poolAddress);
+        const integrityOk = helm_crypto_1.IntegrityDecoder.verify(block.data, tttRecord.grgPayload, chainId, poolAddress);
         if (!integrityOk) {
             logger_1.logger.error(`[AdaptiveSwitch] GRG integrity check FAILED`);
             sequenceOk = false; // Mark as false if integrity fails

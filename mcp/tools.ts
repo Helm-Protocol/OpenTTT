@@ -1,7 +1,7 @@
 // @helm-protocol/ttt-mcp — Tool implementations for Proof of Time MCP Server
-// Uses OpenTTT SDK: TimeSynthesis, GrgPipeline, PotSigner, AdaptiveSwitch
+// Uses OpenTTT SDK: TimeSynthesis, IntegrityPipeline, PotSigner, AdaptiveSwitch
 
-import { TimeSynthesis, GrgPipeline, PotSigner, AdaptiveSwitch, AdaptiveMode } from "openttt";
+import { TimeSynthesis, IntegrityPipeline as GrgPipeline, PotSigner, AdaptiveSwitch, AdaptiveMode } from "openttt";
 import { telemetryIncrement } from "./telemetry";
 
 // ---------- Shared Instances ----------

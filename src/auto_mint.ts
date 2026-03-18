@@ -4,7 +4,7 @@ import { DynamicFeeEngine, FeeCalculation } from "./dynamic_fee";
 import { EVMConnector } from "./evm_connector";
 import { ProtocolFeeCollector } from "./protocol_fee";
 import { PotSigner } from "./pot_signer";
-import { GrgForward } from "../vendor/helm-crypto";
+import { IntegrityEncoder as GrgForward } from "../vendor/helm-crypto";
 import { TierIntervals, AutoMintConfig, MintResult } from "./types";
 import { logger } from "./logger";
 import { TTTConfigError, TTTSignerError, TTTTimeSynthesisError, TTTFeeError, ERROR_CODES } from "./errors";
