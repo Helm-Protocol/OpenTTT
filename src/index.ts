@@ -1,8 +1,8 @@
 // sdk/src/index.ts
-export * from "./grg_forward";
-export * from "./grg_inverse";
-export * from "./grg_pipeline";
-export * from "./adaptive_switch";
+// 서버 내부 전용 (npm pack에서 제외):
+//   grg_forward, grg_inverse, grg_pipeline, golay, reed_solomon
+//   adaptive_switch (GRG 의존), auto_mint (GRG 의존)
+// 위 모듈은 서버 코드에서 직접 경로로 import할 것.
 export * from "./evm_connector";
 export * from "./x402_enforcer";
 export * from "./ttt_builder";
@@ -13,7 +13,6 @@ export * from "./logger";
 export * from "./types";
 export * from "./ttt_client";
 export * from "./http_client";
-export * from "./auto_mint";
 export * from "./time_synthesis";
 export * from "./dynamic_fee";
 export * from "./signer";
