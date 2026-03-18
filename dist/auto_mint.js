@@ -220,7 +220,7 @@ class AutoMintEngine {
         const tokenId = ethers_1.ethers.keccak256(ethers_1.ethers.AbiCoder.defaultAbiCoder().encode(["uint256", "address", "uint64", "uint256"], [BigInt(this.config.chainId), this.config.poolAddress, synthesized.timestamp, nonceSuffix]));
         // 3. Fee calculation
         const feeCalculation = await this.feeEngine.calculateMintFee(this.config.tier);
-        // 4. EVM mint call — run full GRG pipeline (Golomb → Reed-Solomon → Golay+HMAC)
+        // 4. EVM mint call — run GRG integrity pipeline
         const grgPayload = ethers_1.ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "bytes32", "uint64", "uint8"], [tokenId, potHash, synthesized.timestamp, pot.sources]);
         const grgStart = Date.now();
         const grgShards = helm_crypto_1.GrgForward.encode(ethers_1.ethers.getBytes(grgPayload), this.config.chainId, this.config.poolAddress);

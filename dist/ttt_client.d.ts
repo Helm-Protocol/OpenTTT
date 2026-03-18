@@ -1,5 +1,6 @@
 import { EventEmitter } from "events";
 import { AutoMintConfig, TTTClientConfig, MintResult, HealthStatus } from "./types";
+import { HttpOnlyClient, HttpOnlyClientOptions } from "./http_client";
 export { HealthStatus } from "./types";
 /**
  * Typed event map for TTTClient EventEmitter.
@@ -39,6 +40,23 @@ export declare class TTTClient extends EventEmitter {
      * Static factory for Base Sepolia
      */
     static forSepolia(config: Omit<TTTClientConfig, 'network'>): Promise<TTTClient>;
+    /**
+     * Zero-friction sandbox mode — no ETH, no signer, no on-chain interaction.
+     *
+     * Returns an HttpOnlyClient that fetches verified time from NIST, Apple,
+     * Google, and Cloudflare HTTPS endpoints and produces HMAC-signed PoTs.
+     *
+     * @example
+     * // Zero-friction: no wallet, no RPC, no gas
+     * const client = TTTClient.httpOnly();
+     * const pot = await client.generatePoT();
+     * console.log(pot.timestamp, pot.confidence);
+     *
+     * // Verify locally (no on-chain check needed)
+     * const result = client.verifyPoT(pot);
+     * console.log(result.valid); // true
+     */
+    static httpOnly(options?: HttpOnlyClientOptions): HttpOnlyClient;
     /**
      * Universal factory to create and initialize a client
      */

@@ -10,6 +10,10 @@ export interface VerifiedTime {
 /**
  * Fetches time from a single HTTP endpoint via HEAD request.
  * Returns milliseconds since epoch, or null on failure.
+ *
+ * NOTE (Issue 7): HTTP Date headers provide ~1 second precision only.
+ * For sub-second ordering guarantees, use the full OpenTTT SDK with
+ * on-chain anchoring instead of this HTTP-based provider.
  */
 async function fetchTimeFromSource(
   url: string,

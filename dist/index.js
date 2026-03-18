@@ -26,6 +26,7 @@ __exportStar(require("./v4_hook"), exports);
 __exportStar(require("./logger"), exports);
 __exportStar(require("./types"), exports);
 __exportStar(require("./ttt_client"), exports);
+__exportStar(require("./http_client"), exports);
 __exportStar(require("./auto_mint"), exports);
 __exportStar(require("./time_synthesis"), exports);
 __exportStar(require("./dynamic_fee"), exports);

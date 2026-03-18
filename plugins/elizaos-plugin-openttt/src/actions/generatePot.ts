@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import type {
   Action,
   ActionExample,
@@ -10,9 +11,23 @@ import type {
 import { getVerifiedTime } from "../providers/timeProvider.js";
 
 // Module-level cache: runtime has no cacheManager in this version of @elizaos/core
+const MAX_CACHE_SIZE = 1000;
 const potCache = new Map<string, { value: string; expiresAt: number }>();
 
+// Periodic cleanup: evict expired entries every minute
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of potCache.entries()) {
+    if (now > entry.expiresAt) potCache.delete(key);
+  }
+}, 60_000);
+
 export function potCacheSet(key: string, value: string, ttlSeconds: number): void {
+  // Enforce size cap: evict oldest entry if at limit
+  if (potCache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = potCache.keys().next().value;
+    if (oldestKey !== undefined) potCache.delete(oldestKey);
+  }
   potCache.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
 }
 
@@ -34,6 +49,7 @@ export interface PoTToken {
   deviation_ms: number;
   agent_id: string;
   nonce: string;
+  potHash: string;
   issued_at: string;
 }
 
@@ -74,11 +90,13 @@ export const generatePot: Action = {
     try {
       const vt = await getVerifiedTime();
 
-      // Generate a nonce from agent ID + timestamp + random bytes
+      // Generate a cryptographically secure nonce (Issue 3 fix)
       const agentId = runtime.agentId ?? "unknown";
-      const nonceRaw = `${agentId}:${vt.timestamp}:${Math.random().toString(36).slice(2)}`;
-      // Simple hex nonce (no crypto dependency required)
-      const nonce = Buffer.from(nonceRaw).toString("hex").slice(0, 32);
+      const nonce = randomBytes(16).toString("hex");
+
+      // Compute a stable potHash for cache keying (Issue 1 fix)
+      const potHashRaw = `${agentId}:${vt.timestamp}:${nonce}`;
+      const potHash = Buffer.from(potHashRaw).toString("hex").slice(0, 48);
 
       const pot: PoTToken = {
         version: "1.0",
@@ -88,11 +106,14 @@ export const generatePot: Action = {
         deviation_ms: vt.deviation_ms,
         agent_id: agentId,
         nonce,
+        potHash,
         issued_at: new Date(vt.timestamp).toISOString(),
       };
 
-      // Store PoT in module-level cache for verifyPot to access (5 min TTL)
-      potCacheSet(`openttt:pot:${message.id}`, JSON.stringify(pot), 300);
+      // Store PoT keyed by potHash (stable, survives message.id mismatch)
+      potCacheSet(`openttt:pot:${pot.potHash}`, JSON.stringify(pot), 300);
+      // Also store "last generated" pointer so verifyPot can find it without potHash
+      potCacheSet(`openttt:last:${agentId}`, pot.potHash, 300);
 
       const consensusLabel = pot.consensus ? "✓ CONSENSUS" : "⚠ DEGRADED";
       const responseText = [

@@ -222,10 +222,6 @@ class TimeSynthesis {
             else if (s === 'apple') {
                 this.sources.push(new HTTPSTimeSource('apple', 'https://time.apple.com/'));
             }
-            else if (s === 'kriss') {
-                // Legacy: KRISS NTP (plaintext UDP) — kept for backward compat, not in defaults
-                this.sources.push(new NTPSource('kriss', 'time.kriss.re.kr'));
-            }
         }
     }
     async getFromSource(name) {
