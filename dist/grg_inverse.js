@@ -1,64 +1,58 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GrgInverse = void 0;
+// sdk/src/grg_inverse.ts
 const crypto_1 = require("crypto");
 const golay_1 = require("./golay");
 const grg_forward_1 = require("./grg_forward");
 const logger_1 = require("./logger");
 const reed_solomon_1 = require("./reed_solomon");
 class GrgInverse {
-    // 1. Golay Decoding & Integrity Check 🔱
+    static MAX_GOLOMB_Q = 1000000;
     static golayDecodeWrapper(data, hmacKey) {
         if (data.length < 8)
             throw new Error("GRG shard too short for checksum");
-        // Split data and checksum (last 8 bytes)
         const encoded = data.subarray(0, data.length - 8);
         const checksum = data.subarray(data.length - 8);
-        // Verify HMAC-SHA256 Checksum (keyed hash, B1-5: 8 bytes truncated)
-        const key = hmacKey || grg_forward_1.GrgForward.deriveHmacKey();
-        const mac = (0, crypto_1.createHmac)("sha256", key).update(Buffer.from(encoded)).digest();
+        const mac = (0, crypto_1.createHmac)("sha256", hmacKey).update(Buffer.from(encoded)).digest();
         const expected = mac.subarray(0, 8);
         if (!Buffer.from(checksum).equals(Buffer.from(expected))) {
             throw new Error("GRG tamper detected: HMAC-SHA256 checksum mismatch");
         }
-        // Proceed to Golay decode
         const res = (0, golay_1.golayDecode)(encoded);
         if (res.uncorrectable) {
             throw new Error("GRG tamper detected: uncorrectable bit errors in Golay codeword");
         }
         return res.data;
     }
-    // 2. RedStuff Decoding (Reed-Solomon GF(2^8))
     static redstuffDecode(shards, dataShardCount = 4, parityShardCount = 2) {
         return reed_solomon_1.ReedSolomon.decode(shards, dataShardCount, parityShardCount);
     }
-    // 3. Golomb-Rice Decompression
-    // R4-P2-3: Max unary run length to prevent amplification DoS
-    static MAX_GOLOMB_Q = 1_000_000;
-    static golombDecode(data, m = 16) {
+    static golombDecode(data, m = 16, originalLength) {
         if (m < 2)
             throw new Error("[GRG] Golomb parameter m must be >= 2");
         const k = Math.log2(m);
-        let bits = "";
-        for (const byte of data) {
-            bits += byte.toString(2).padStart(8, "0");
-        }
+        const totalBits = data.length * 8;
+        const readBit = (pos) => (data[pos >> 3] >> (7 - (pos & 7))) & 1;
         const result = [];
         let i = 0;
-        while (i < bits.length) {
+        while (i < totalBits) {
+            if (originalLength !== undefined && result.length >= originalLength)
+                break;
             let q = 0;
-            while (bits[i] === "1") {
+            while (i < totalBits && readBit(i) === 1) {
                 q++;
                 i++;
                 if (q > this.MAX_GOLOMB_Q)
                     throw new Error(`[GRG] Golomb decode: unary run exceeds ${this.MAX_GOLOMB_Q} — malformed or malicious input`);
             }
-            if (bits[i] === "0")
+            if (i < totalBits && readBit(i) === 0)
                 i++;
-            const rStr = bits.substring(i, i + k);
-            if (rStr.length < k)
+            if (i + k > totalBits)
                 break;
-            const r = parseInt(rStr, 2);
+            let r = 0;
+            for (let j = 0; j < k; j++)
+                r = (r << 1) | readBit(i + j);
             result.push(q * m + r);
             i += k;
         }
@@ -76,7 +70,6 @@ class GrgInverse {
                 }
             });
             const withLen = this.redstuffDecode(decodedShards);
-            // Extract original length
             if (withLen.length < 4)
                 return false;
             const origLen = (withLen[0] << 24) | (withLen[1] << 16) | (withLen[2] << 8) | withLen[3];
