@@ -21,7 +21,7 @@ export interface Block {
   data: Uint8Array;
 }
 
-// const TOLERANCE = 100; // 100ms tolerance for GEO-Sat operator sync (now configurable via constructor)
+// const TOLERANCE = 100; // 100ms tolerance for GEO-sat operator sync (now configurable via constructor)
 
 /** Tier-based dynamic tolerance (ms) — auditor-requested upgrade */
 export const TIER_TOLERANCE_MS: Record<string, number> = {

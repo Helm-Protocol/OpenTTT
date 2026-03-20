@@ -121,7 +121,7 @@ export class NTPSource implements TimeSource {
  * - The TLS handshake itself provides authentication of the time server identity,
  *   preventing MITM attacks that plaintext NTP (UDP port 123) is vulnerable to.
  * - Base uncertainty for HTTPS Date header is 500ms (HTTP Date has 1-second resolution).
- * - For ±10ns precision, HTTPS is a cross-check only; GEO-Sat operator is the primary source.
+ * - For ±10ns precision, HTTPS is a cross-check only; GEO-sat operator is the primary source.
  */
 export class HTTPSTimeSource implements TimeSource {
   private activeRequests: Set<import('http').ClientRequest> = new Set();
