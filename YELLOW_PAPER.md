@@ -528,9 +528,9 @@ An intermediary RPC proxy that transparently intercepts `eth_sendRawTransaction`
 
 Direct integration with L2 sequencer ordering logic, where the Adaptive Switch operates at the sequencer level rather than the builder level. This would provide TTT guarantees at the rollup's native ordering layer.
 
-### 12.4 GEO-Sat operator Satellite Time Sources
+### 12.4 GEOsat operator Satellite Time Sources
 
-Integration of satellite-based time sources (GEO-Sat operator infrastructure) to complement NTP, providing an independent physical timing channel resistant to internet-level routing attacks.
+Integration of satellite-based time sources (GEOsat operator infrastructure) to complement NTP, providing an independent physical timing channel resistant to internet-level routing attacks.
 
 ---
 
