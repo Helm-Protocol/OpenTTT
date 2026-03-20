@@ -1,5 +1,6 @@
 // sdk/tests/grg_tamper.test.ts
-import { GrgForward, GrgInverse, AdaptiveSwitch, AdaptiveMode, TTTRecord, Block } from "../src";
+import { GrgForward, GrgInverse } from "../vendor/helm-crypto";
+import { AdaptiveSwitch, AdaptiveMode, TTTRecord, Block } from "../vendor/helm-crypto";
 
 describe("TTT GRG Tamper Detection Tests", () => {
   const data = new TextEncoder().encode("TLS Time Protocol v0.1");

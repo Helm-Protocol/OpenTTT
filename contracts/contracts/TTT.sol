@@ -8,8 +8,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
- * @title TTT (Tikitaka Tick Token)
- * @dev Tikitaka Tick Token implementation for managing micropayment ticks.
+ * @title TTT (TlsTimeToken)
+ * @dev TlsTimeToken implementation for managing micropayment ticks.
  * Inherits ERC-1155, ERC1155Supply, AccessControl, ReentrancyGuard, and Pausable from OpenZeppelin.
  * All access control is managed via AccessControl roles (MINTER_ROLE, PAUSER_ROLE).
  */

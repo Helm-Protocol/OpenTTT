@@ -36,3 +36,8 @@ contracts/DEPLOYED.md
 contracts/pot_bot_counter.txt
 docs/TRUST_NETWORK_STRATEGY.md
 AGENTS.md
+contracts/pot_bot.log
+mcp/mcp_bot.log
+contracts/cache/
+coverage/
+wasm/grg-wasm/target/

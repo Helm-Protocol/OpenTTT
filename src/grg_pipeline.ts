@@ -4,7 +4,7 @@ import { GrgInverse } from "./grg_inverse";
 import { logger } from "./logger";
 
 export class GrgPipeline {
-  private static readonly MAX_INPUT_SIZE = 100 * 1024 * 1024; // 100 MB
+  static readonly MAX_INPUT_SIZE = 100 * 1024 * 1024; // 100 MB
 
   static processForward(data: Uint8Array, chainId: number, poolAddress: string): Uint8Array[] {
     if (data.length > this.MAX_INPUT_SIZE) {
