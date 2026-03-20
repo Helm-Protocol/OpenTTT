@@ -21,3 +21,18 @@ reports/
 
 # GRG IP protection — private crypto implementation NEVER in public repo
 vendor/
+PROGRESS.md
+PHASE0_BLOCKERS.md
+PHASE1_WIRING.md
+CRITICAL_FIXES.md
+OVERNIGHT_REPORT.md
+audit_report_full.txt
+reports/
+mcp/MCP_MARKETPLACE_PR.md
+DEPLOYMENT_GUIDE.md
+integrations/langchain/LANGCHAIN_PR.md
+integrations/langchain/PR_DESCRIPTION.md
+contracts/DEPLOYED.md
+contracts/pot_bot_counter.txt
+docs/TRUST_NETWORK_STRATEGY.md
+AGENTS.md

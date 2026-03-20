@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in OpenTTT, please report it responsibly.
 
-**Email:** security@helm-protocol.io
+**Email:** heime.jorgen@proton.me
 
 **Response SLA:**
 - Acknowledge: within 24 hours
