@@ -40,6 +40,31 @@ No governance vote. No slashing committee. Cheating is simply bad business.
 
 ---
 
+## Why OpenTTT, not Google Roughtime?
+
+A common question: *"Google Roughtime already solves timestamp verification — why do we need OpenTTT?"*
+
+The answer: **Roughtime and OpenTTT operate at completely different points in the lifecycle.**
+
+| | Google Roughtime | OpenTTT |
+|---|---|---|
+| **When it acts** | After block finalization | Before fork transition is applied |
+| **What it does** | Cryptographically proves a timestamp was wrong *after the fact* | Rejects the block *before* it enters chain state |
+| **Enforcement** | Audit trail only — the bad block is already finalized | Block is invalid on nodes running the hook |
+| **Economic effect** | None — requires social/legal follow-up | Validator MEV from timestamp drift → 0 as adoption grows |
+| **Use case** | Security auditing, forensics | Real-time enforcement at ingestion |
+
+**In one sentence:**
+> Roughtime proves time fraud happened. OpenTTT makes time fraud economically irrational before it can happen.
+
+Roughtime is a valuable audit tool. OpenTTT is an enforcement layer. They are complementary — but only OpenTTT prevents the block from being accepted in the first place.
+
+### The game-theoretic guarantee
+
+With OpenTTT hooks active on validator nodes, a validator who drifts their timestamp by X seconds to capture MEV will have their block rejected by hook-enabled nodes. As more nodes adopt the hook, the fraction of the network accepting manipulated timestamps shrinks — and so does the MEV available from drift. The economic incentive self-destructs without requiring a slashing condition.
+
+---
+
 ## Quick Start
 
 ### Try it in 30 seconds — No ETH, No Wallet
