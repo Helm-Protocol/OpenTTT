@@ -1,6 +1,6 @@
 {
   "name": "openttt",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "OpenTTT — TLS-grade transaction ordering for DeFi. Time + Logic + Sync.",
   "license": "BSL-1.1",
   "repository": {
