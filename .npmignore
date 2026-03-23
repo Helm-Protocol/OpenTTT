@@ -1,5 +1,21 @@
 # GRG IP protection — exclude from npm package
 
+# GRG pipeline — server-internal only, not for npm distribution
+dist/grg_forward.js
+dist/grg_forward.d.ts
+dist/grg_inverse.js
+dist/grg_inverse.d.ts
+dist/grg_pipeline.js
+dist/grg_pipeline.d.ts
+dist/golay.js
+dist/golay.d.ts
+dist/reed_solomon.js
+dist/reed_solomon.d.ts
+dist/adaptive_switch.js
+dist/adaptive_switch.d.ts
+dist/auto_mint.js
+dist/auto_mint.d.ts
+
 # GRG vendor (private crypto)
 vendor/
 
