@@ -39,3 +39,4 @@ __exportStar(require("./ct_log"), exports);
 __exportStar(require("./trust_store"), exports);
 __exportStar(require("./revenue_tiers"), exports);
 __exportStar(require("./integrity_client"), exports);
+__exportStar(require("./osnma_source"), exports);

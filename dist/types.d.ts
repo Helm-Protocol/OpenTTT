@@ -37,7 +37,7 @@ export interface TTTClientConfig {
      */
     rpcUrl?: string;
     /**
-     * Optional: Overwrite default NTP/GEO-Sat operator sources
+     * Optional: Overwrite default NTP/GEO-sat operator sources
      * Default: ["nist", "google", "cloudflare", "apple"]
      */
     timeSources?: string[];

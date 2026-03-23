@@ -10,7 +10,7 @@ var AdaptiveMode;
     AdaptiveMode["TURBO"] = "TURBO";
     AdaptiveMode["FULL"] = "FULL";
 })(AdaptiveMode || (exports.AdaptiveMode = AdaptiveMode = {}));
-// const TOLERANCE = 100; // 100ms tolerance for GEO-Sat operator sync (now configurable via constructor)
+// const TOLERANCE = 100; // 100ms tolerance for GEO-sat operator sync (now configurable via constructor)
 /** Tier-based dynamic tolerance (ms) — auditor-requested upgrade */
 exports.TIER_TOLERANCE_MS = {
     T0_epoch: 2000, // 6.4min tick → 2s tolerance
