@@ -41,3 +41,10 @@ mcp/mcp_bot.log
 contracts/cache/
 coverage/
 wasm/grg-wasm/target/
+
+# Server-internal files (private helm repo only)
+src/auto_mint.ts
+src/ttt_client.ts
+src/grg_*.ts
+src/golay.ts
+src/reed_solomon.ts
