@@ -320,6 +320,8 @@ GRG is a multi-layer data integrity pipeline that protects PoT payloads — anal
 
 The pipeline produces verifiable shards that can be independently validated and reconstructed, ensuring PoT integrity even under partial data loss.
 
+**[▶ Interactive GRG Pipeline Explainer](https://helm-protocol.github.io/OpenTTT/demo/grg-explainer.html)** — Visual walkthrough of the GRG stages, Byzantine elimination, and Base Sepolia testnet results.
+
 > Implementation details are proprietary. See the [IETF Draft](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) for the abstract specification.
 
 ### Adaptive Mode Switching

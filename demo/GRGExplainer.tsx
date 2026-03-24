@@ -1,0 +1,872 @@
+﻿import { useState, useEffect, useRef } from "react";
+
+
+// ─── THEME ────────────────────────────────────────────────────────────────────
+const T = {
+  bg:      "#020810",
+  panel:   "#050d1a",
+  border:  "#0f2040",
+  turbo:   "#00ffe5",
+  grg:     "#39ff14",
+  warn:    "#ff3d3d",
+  gold:    "#ffd700",
+  blue:    "#4488ff",
+  sub:     "#4a6b8a",
+  text:    "#c8dff0",
+  dim:     "#2a4560",
+};
+
+
+// ─── SCENES ──────────────────────────────────────────────────────────────────
+const SCENES = [
+  { id: "title",     label: "Title",          duration: 4000  },
+  { id: "problem",   label: "The Problem",    duration: 6000  },
+  { id: "shannon",   label: "Shannon Limit",  duration: 5500  },
+  { id: "pipeline",  label: "GRG Pipeline",   duration: 8000  },
+  { id: "byzantine", label: "Elimination",    duration: 6500  },
+  { id: "results",   label: "Results",        duration: 5000  },
+  { id: "future",    label: "Future",         duration: 4000  },
+];
+
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const useAnimatedValue = (target, duration = 1200) => {
+  const [val, setVal] = useState(0);
+  const ref = useRef(null);
+  useEffect(() => {
+    let start = null;
+    const from = ref.current ?? 0;
+    ref.current = target;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setVal(Math.round(from + (target - from) * ease));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target]);
+  return val;
+};
+
+
+const Glow = ({ color, size = 120, x = "50%", y = "50%", opacity = 0.15 }) => (
+  <div style={{
+    position: "absolute", left: x, top: y, transform: "translate(-50%,-50%)",
+    width: size, height: size, borderRadius: "50%",
+    background: color, filter: `blur(${size * 0.4}px)`,
+    opacity, pointerEvents: "none",
+  }} />
+);
+
+
+const Scanline = () => (
+  <div style={{
+    position: "absolute", inset: 0, pointerEvents: "none", zIndex: 10,
+    backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,229,0.015) 2px, rgba(0,255,229,0.015) 4px)",
+  }} />
+);
+
+
+// ─── SCENE COMPONENTS ────────────────────────────────────────────────────────
+
+
+// TITLE SCENE
+const SceneTitle = ({ progress }) => {
+  const opacity = progress < 0.1 ? progress * 10 : progress > 0.85 ? (1 - progress) * 6.7 : 1;
+  return (
+    <div style={{ position: "relative", textAlign: "center", padding: "60px 40px", opacity }}>
+      <Glow color={T.turbo} size={400} opacity={0.08} />
+      <Glow color={T.grg}   size={200} x="30%" y="60%" opacity={0.06} />
+      <div style={{
+        fontSize: 11, letterSpacing: "0.4em", color: T.turbo,
+        marginBottom: 24, textTransform: "uppercase",
+        animation: "fadeUp 0.8s ease",
+      }}>
+        World's First · Byzantine Fault Elimination
+      </div>
+      <div style={{
+        fontSize: 72, fontWeight: 900, letterSpacing: "-0.02em",
+        fontFamily: "'Courier New', monospace",
+        background: `linear-gradient(135deg, ${T.turbo} 0%, ${T.grg} 50%, ${T.blue} 100%)`,
+        WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+        lineHeight: 1, marginBottom: 12,
+      }}>
+        GRG
+      </div>
+      <div style={{
+        fontSize: 22, color: T.text, fontWeight: 300, letterSpacing: "0.05em",
+        marginBottom: 40,
+      }}>
+        Golomb-Rice · Reed-Solomon · Golay
+      </div>
+      <div style={{
+        display: "inline-block", padding: "12px 32px",
+        border: `1px solid ${T.turbo}44`, borderRadius: 4,
+        color: T.sub, fontSize: 12, letterSpacing: "0.15em",
+      }}>
+        A Mathematical Extension of Shannon's Noise Theory to Adversarial Systems
+      </div>
+      <div style={{
+        marginTop: 48, display: "flex", justifyContent: "center", gap: 48,
+      }}>
+        {[
+          { v: "49,000+", l: "PoT Records" },
+          { v: "O(1)",     l: "Detection" },
+          { v: "0%",       l: "False Negative" },
+        ].map(s => (
+          <div key={s.l} style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: T.turbo, fontFamily: "monospace" }}>{s.v}</div>
+            <div style={{ fontSize: 11, color: T.sub, marginTop: 4, letterSpacing: "0.1em" }}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+
+// PROBLEM SCENE
+const SceneProblem = ({ progress }) => {
+  const opacity = progress < 0.1 ? progress * 10 : progress > 0.85 ? (1 - progress) * 6.7 : 1;
+  const nodes = [
+    { x: 20, y: 30, byzantine: false, label: "Node A" },
+    { x: 50, y: 15, byzantine: false, label: "Node B" },
+    { x: 80, y: 30, byzantine: false, label: "Node C" },
+    { x: 35, y: 65, byzantine: true,  label: "Node X ⚠" },
+    { x: 65, y: 65, byzantine: true,  label: "Node Y ⚠" },
+  ];
+  const pulse = (Math.sin(progress * Math.PI * 6) + 1) / 2;
+  return (
+    <div style={{ opacity, padding: "32px 48px" }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.3em", color: T.warn, marginBottom: 8 }}>THE PROBLEM</div>
+      <div style={{ fontSize: 36, fontWeight: 800, color: T.text, marginBottom: 8 }}>
+        Byzantine Nodes Cannot Be Stopped
+      </div>
+      <div style={{ fontSize: 14, color: T.sub, marginBottom: 40, lineHeight: 1.7 }}>
+        Every existing protocol <em style={{ color: T.text }}>tolerates</em> Byzantine faults.<br/>
+        GRG is the first to <em style={{ color: T.turbo }}>eliminate</em> them mathematically.
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
+        {/* Network diagram */}
+        <div style={{
+          position: "relative", height: 220,
+          background: T.panel, border: `1px solid ${T.border}`,
+          borderRadius: 12, overflow: "hidden",
+        }}>
+          <div style={{ position: "absolute", top: 12, left: 16, fontSize: 10, color: T.sub, letterSpacing: "0.2em" }}>DISTRIBUTED NETWORK</div>
+          <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+            {nodes.map((n, i) =>
+              nodes.slice(i + 1).map((m, j) => (
+                <line key={`${i}-${j}`}
+                  x1={`${n.x}%`} y1={`${n.y + 10}%`}
+                  x2={`${m.x}%`} y2={`${m.y + 10}%`}
+                  stroke={n.byzantine || m.byzantine
+                    ? `rgba(255,61,61,${0.15 + pulse * 0.2})`
+                    : `rgba(0,255,229,0.08)`}
+                  strokeWidth={n.byzantine || m.byzantine ? 1.5 : 0.8}
+                  strokeDasharray={n.byzantine || m.byzantine ? "4 4" : "none"}
+                />
+              ))
+            )}
+          </svg>
+          {nodes.map(n => (
+            <div key={n.label} style={{
+              position: "absolute",
+              left: `${n.x}%`, top: `${n.y}%`,
+              transform: "translate(-50%, -50%)",
+            }}>
+              <div style={{
+                width: n.byzantine ? 44 : 36, height: n.byzantine ? 44 : 36,
+                borderRadius: "50%",
+                background: n.byzantine
+                  ? `rgba(255,61,61,${0.15 + pulse * 0.2})`
+                  : "rgba(0,255,229,0.1)",
+                border: `2px solid ${n.byzantine
+                  ? `rgba(255,61,61,${0.6 + pulse * 0.4})`
+                  : `${T.turbo}66`}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 9, color: n.byzantine ? T.warn : T.turbo,
+                fontWeight: 700, textAlign: "center", lineHeight: 1.2,
+              }}>
+                {n.byzantine ? "⚠" : "✓"}
+              </div>
+              <div style={{
+                position: "absolute", top: "110%", left: "50%",
+                transform: "translateX(-50%)",
+                fontSize: 9, color: n.byzantine ? T.warn : T.sub,
+                whiteSpace: "nowrap",
+              }}>{n.label}</div>
+            </div>
+          ))}
+        </div>
+        {/* Stats */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {[
+            { label: "MEV Losses (2025)",         value: "$60M+/yr",  color: T.warn, icon: "💸" },
+            { label: "PBFT Detection Latency",     value: "O(n²)",     color: T.warn, icon: "⏱" },
+            { label: "Existing Protocols",         value: "TOLERATE",  color: T.warn, icon: "🛡" },
+            { label: "Byzantine Nodes Remaining",  value: "f < n/3",   color: T.warn, icon: "⚠️" },
+          ].map(s => (
+            <div key={s.label} style={{
+              display: "flex", alignItems: "center", gap: 12,
+              background: T.panel, border: `1px solid ${T.border}`,
+              borderRadius: 8, padding: "12px 16px",
+            }}>
+              <span style={{ fontSize: 20 }}>{s.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: T.sub }}>{s.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: s.color, fontFamily: "monospace" }}>{s.value}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// SHANNON SCENE
+const SceneShannon = ({ progress }) => {
+  const opacity = progress < 0.1 ? progress * 10 : progress > 0.85 ? (1 - progress) * 6.7 : 1;
+  const revealProgress = Math.min(progress * 2.5, 1);
+  return (
+    <div style={{ opacity, padding: "32px 48px" }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.3em", color: T.blue, marginBottom: 8 }}>THEORETICAL FOUNDATION</div>
+      <div style={{ fontSize: 36, fontWeight: 800, color: T.text, marginBottom: 32 }}>
+        Extending Shannon's 1948 Model
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        {/* Shannon original */}
+        <div style={{
+          background: T.panel, border: `1px solid ${T.dim}`,
+          borderRadius: 12, padding: "24px",
+          opacity: 0.7,
+        }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.25em", color: T.sub, marginBottom: 16 }}>SHANNON (1948)</div>
+          <div style={{
+            fontFamily: "monospace", fontSize: 20, color: T.text,
+            marginBottom: 16, letterSpacing: "0.05em",
+          }}>
+            Y = X + N<sub style={{ fontSize: 12 }}>unintentional</sub>
+          </div>
+          <div style={{ fontSize: 13, color: T.sub, lineHeight: 1.8 }}>
+            • Noise modeled as <em style={{ color: T.text }}>probability variable</em><br/>
+            • Assumes unintended errors only<br/>
+            • Cannot fully eliminate adversarial noise<br/>
+            • Channel capacity upper bound
+          </div>
+          <div style={{
+            marginTop: 16, padding: "8px 12px",
+            background: "rgba(255,61,61,0.08)", border: "1px solid rgba(255,61,61,0.2)",
+            borderRadius: 6, fontSize: 11, color: T.warn,
+          }}>
+            Limitation: Byzantine intent = irreducible entropy
+          </div>
+        </div>
+        {/* GRG extension */}
+        <div style={{
+          background: T.panel,
+          border: `1px solid ${T.turbo}44`,
+          borderRadius: 12, padding: "24px",
+          boxShadow: `0 0 32px ${T.turbo}11`,
+          opacity: revealProgress,
+          transform: `translateX(${(1 - revealProgress) * 20}px)`,
+          transition: "transform 0.3s",
+        }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.25em", color: T.turbo, marginBottom: 16 }}>GRG EXTENSION (2026)</div>
+          <div style={{
+            fontFamily: "monospace", fontSize: 20, color: T.turbo,
+            marginBottom: 16, letterSpacing: "0.05em",
+          }}>
+            Y = X + N<sub style={{ fontSize: 12 }}>adversarial</sub>
+          </div>
+          <div style={{ fontSize: 13, color: T.sub, lineHeight: 1.8 }}>
+            • Byzantine noise = <em style={{ color: T.turbo }}>detectable signal</em><br/>
+            • Context binding makes forgery self-identifying<br/>
+            • O(1) verdict regardless of network size<br/>
+            • Deterministic elimination, not tolerance
+          </div>
+          <div style={{
+            marginTop: 16, padding: "8px 12px",
+            background: `${T.turbo}11`, border: `1px solid ${T.turbo}33`,
+            borderRadius: 6, fontSize: 11, color: T.turbo, fontFamily: "monospace",
+          }}>
+            P(Byzantine undetected | GRG) ≤ 2⁻⁶⁴
+          </div>
+        </div>
+      </div>
+      <div style={{
+        marginTop: 20, padding: "14px 20px",
+        background: `${T.grg}08`, border: `1px solid ${T.grg}33`,
+        borderRadius: 8, fontSize: 13, color: T.sub,
+        opacity: revealProgress,
+      }}>
+        <span style={{ color: T.grg, fontWeight: 700 }}>Key Insight: </span>
+        Shannon's model is a special case of GRG where context binding is trivial.
+        GRG makes adversarial intent a <em style={{ color: T.text }}>mathematically self-defeating</em> strategy.
+      </div>
+    </div>
+  );
+};
+
+
+// PIPELINE SCENE
+const ScenePipeline = ({ progress }) => {
+  const opacity = progress < 0.08 ? progress * 12.5 : progress > 0.88 ? (1 - progress) * 8.3 : 1;
+  const stages = [
+    {
+      id: "G1", label: "G₁", full: "Golomb-Rice", color: T.turbo,
+      desc: "Shannon-optimal compression of geometric integer distributions in PoT payload",
+      out: "↓ 39% size reduction · Byte-aligned output for GF(2⁸) symbols",
+      theorem: "THEOREM 1: G₁ before R is necessary",
+    },
+    {
+      id: "R",  label: "R",  full: "Reed-Solomon (4,2)", color: T.blue,
+      desc: "Systematic erasure coding: K=4 data shards + M=2 parity shards over GF(2⁸)",
+      out: "→ Fixed-size equal shards · Any 4 of 6 reconstruct payload",
+      theorem: "THEOREM 2: R before G₂ is necessary",
+    },
+    {
+      id: "G2", label: "G₂", full: "Golay [23,12,7]", color: T.grg,
+      desc: "Perfect binary code: corrects t≤3 bit errors per codeword (Hamming bound achieved)",
+      out: "↑ Bit-level protection orthogonal to RS erasure-level protection",
+      theorem: "THEOREM 3: G₂ after R is necessary",
+    },
+    {
+      id: "H",  label: "H",  full: "Context-Bound HMAC", color: T.gold,
+      desc: "Key derived from chainId ‖ contractAddress — cross-context forgery mathematically impossible",
+      out: "⚡ Byzantine verdict in O(1) · P(forge) = 2⁻⁶⁴",
+      theorem: "THEOREM 4: Byzantine Elimination",
+    },
+  ];
+
+
+  const activeStage = Math.min(Math.floor(progress * stages.length * 1.15), stages.length - 1);
+  const particleOffset = (progress * 500) % 100;
+
+
+  return (
+    <div style={{ opacity, padding: "24px 48px" }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.3em", color: T.grg, marginBottom: 8 }}>THE PIPELINE</div>
+      <div style={{ fontSize: 32, fontWeight: 800, color: T.text, marginBottom: 6 }}>
+        Mathematically Unique Ordering
+      </div>
+      <div style={{ fontSize: 13, color: T.sub, marginBottom: 28 }}>
+        Any permutation of stages destroys the input-output optimality chain
+      </div>
+
+
+      {/* Pipeline flow */}
+      <div style={{ position: "relative" }}>
+        {/* Data flow line */}
+        <div style={{
+          position: "absolute", left: 32, top: "50%", transform: "translateY(-50%)",
+          width: "calc(100% - 64px)", height: 2,
+          background: `linear-gradient(90deg, ${T.turbo}88, ${T.blue}88, ${T.grg}88, ${T.gold}88)`,
+          zIndex: 0,
+        }} />
+
+
+        {/* Moving particles */}
+        {[0, 25, 50, 75].map((offset, i) => {
+          const pos = (particleOffset + offset) % 100;
+          return (
+            <div key={i} style={{
+              position: "absolute", top: "50%", transform: "translateY(-50%)",
+              left: `${pos}%`, width: 6, height: 6, borderRadius: "50%",
+              background: T.turbo, boxShadow: `0 0 8px ${T.turbo}`,
+              zIndex: 5, opacity: 0.8,
+              transition: "left 0.05s linear",
+            }} />
+          );
+        })}
+
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, position: "relative", zIndex: 1 }}>
+          {stages.map((s, i) => (
+            <div key={s.id} style={{
+              background: i === activeStage
+                ? `linear-gradient(135deg, ${s.color}18, ${T.panel})`
+                : T.panel,
+              border: `1px solid ${i === activeStage ? s.color + "66" : T.border}`,
+              borderRadius: 12, padding: "18px 16px",
+              boxShadow: i === activeStage ? `0 0 24px ${s.color}22` : "none",
+              transition: "all 0.4s ease",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 8,
+                  background: `${s.color}18`, border: `1px solid ${s.color}44`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 18, fontWeight: 900, color: s.color,
+                  fontFamily: "monospace",
+                }}>{s.label}</div>
+                <div>
+                  <div style={{ fontSize: 11, color: s.color, fontWeight: 700 }}>{s.id}</div>
+                  <div style={{ fontSize: 10, color: T.sub }}>{s.full}</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 11, color: T.sub, lineHeight: 1.6, marginBottom: 10 }}>{s.desc}</div>
+              <div style={{
+                fontSize: 10, color: s.color, fontFamily: "monospace",
+                borderTop: `1px solid ${T.border}`, paddingTop: 8, lineHeight: 1.5,
+              }}>{s.out}</div>
+              {i === activeStage && (
+                <div style={{
+                  marginTop: 8, padding: "4px 8px",
+                  background: `${s.color}11`, borderRadius: 4,
+                  fontSize: 9, color: s.color, fontWeight: 700, letterSpacing: "0.1em",
+                }}>{s.theorem}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// BYZANTINE SCENE
+const SceneByzantine = ({ progress }) => {
+  const opacity = progress < 0.1 ? progress * 10 : progress > 0.85 ? (1 - progress) * 6.7 : 1;
+  const elimProgress = Math.min(progress * 1.8, 1);
+  const nodes = [
+    { id: "A", honest: true,  x: 15, y: 40 },
+    { id: "B", honest: true,  x: 35, y: 20 },
+    { id: "C", honest: true,  x: 60, y: 25 },
+    { id: "D", honest: true,  x: 80, y: 40 },
+    { id: "E", honest: true,  x: 50, y: 65 },
+    { id: "X", honest: false, x: 25, y: 70 },
+    { id: "Y", honest: false, x: 72, y: 68 },
+  ];
+  const pulse = (Math.sin(progress * Math.PI * 8) + 1) / 2;
+
+
+  return (
+    <div style={{ opacity, padding: "24px 48px" }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.3em", color: T.warn, marginBottom: 8 }}>BYZANTINE ELIMINATION</div>
+      <div style={{ fontSize: 32, fontWeight: 800, color: T.text, marginBottom: 28 }}>
+        Mathematical Verdict · Not Probabilistic
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 28 }}>
+        {/* Network animation */}
+        <div style={{
+          position: "relative", height: 260,
+          background: T.panel, border: `1px solid ${T.border}`,
+          borderRadius: 12, overflow: "hidden",
+        }}>
+          <div style={{ position: "absolute", top: 12, left: 16, fontSize: 10, color: T.sub, letterSpacing: "0.2em" }}>
+            ADVERSARIAL NETWORK
+          </div>
+          <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+            {nodes.map((n, i) =>
+              nodes.slice(i + 1).map((m, j) => {
+                const isByzEdge = !n.honest || !m.honest;
+                const eliminated = isByzEdge && elimProgress > 0.5;
+                return (
+                  <line key={`${i}-${j}`}
+                    x1={`${n.x}%`} y1={`${n.y}%`}
+                    x2={`${m.x}%`} y2={`${m.y}%`}
+                    stroke={eliminated
+                      ? "transparent"
+                      : isByzEdge
+                        ? `rgba(255,61,61,${0.3 + pulse * 0.3})`
+                        : `rgba(0,255,229,0.12)`}
+                    strokeWidth={isByzEdge ? 2 : 0.8}
+                    strokeDasharray={isByzEdge && !eliminated ? "3 3" : "none"}
+                  />
+                );
+              })
+            )}
+          </svg>
+          {nodes.map(n => {
+            const eliminated = !n.honest && elimProgress > 0.5;
+            return (
+              <div key={n.id} style={{
+                position: "absolute",
+                left: `${n.x}%`, top: `${n.y}%`,
+                transform: "translate(-50%, -50%)",
+                opacity: eliminated ? 0.15 : 1,
+                transition: "opacity 0.6s ease",
+              }}>
+                <div style={{
+                  width: 42, height: 42, borderRadius: "50%",
+                  background: n.honest
+                    ? "rgba(0,255,229,0.1)"
+                    : `rgba(255,61,61,${0.1 + pulse * 0.15})`,
+                  border: `2px solid ${n.honest ? T.turbo + "66" : T.warn + "aa"}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 14, fontWeight: 700, color: n.honest ? T.turbo : T.warn,
+                  boxShadow: !n.honest && !eliminated
+                    ? `0 0 ${8 + pulse * 12}px ${T.warn}44`
+                    : "none",
+                }}>
+                  {eliminated ? "✕" : n.honest ? n.id : "⚠"}
+                </div>
+              </div>
+            );
+          })}
+          {elimProgress > 0.5 && (
+            <div style={{
+              position: "absolute", bottom: 12, left: "50%",
+              transform: "translateX(-50%)",
+              fontSize: 11, color: T.grg, fontWeight: 700, letterSpacing: "0.15em",
+              opacity: (elimProgress - 0.5) * 2,
+            }}>
+              ✓ BYZANTINE NODES ELIMINATED
+            </div>
+          )}
+        </div>
+
+
+        {/* Comparison */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {[
+            {
+              proto: "PBFT", latency: "~2,400ms", complexity: "O(n²)",
+              fp: "8%", verdict: "TOLERATES", color: T.warn,
+            },
+            {
+              proto: "HotStuff", latency: "~900ms", complexity: "O(n)",
+              fp: "4%", verdict: "TOLERATES", color: T.warn,
+            },
+            {
+              proto: "GRG", latency: "~1ms", complexity: "O(1)",
+              fp: "0%", verdict: "ELIMINATES", color: T.grg,
+            },
+          ].map(p => (
+            <div key={p.proto} style={{
+              background: p.proto === "GRG"
+                ? `linear-gradient(135deg, ${T.grg}10, ${T.panel})`
+                : T.panel,
+              border: `1px solid ${p.proto === "GRG" ? T.grg + "44" : T.border}`,
+              borderRadius: 10, padding: "14px 16px",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{
+                  fontSize: 14, fontWeight: 700,
+                  color: p.proto === "GRG" ? T.grg : T.text,
+                  fontFamily: "monospace",
+                }}>{p.proto}</span>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.15em",
+                  color: p.color, padding: "2px 8px",
+                  border: `1px solid ${p.color}44`, borderRadius: 4,
+                }}>{p.verdict}</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                {[
+                  { l: "Latency", v: p.latency },
+                  { l: "Complexity", v: p.complexity },
+                  { l: "False Neg.", v: p.fp },
+                ].map(s => (
+                  <div key={s.l} style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 13, color: p.color, fontWeight: 700, fontFamily: "monospace" }}>{s.v}</div>
+                    <div style={{ fontSize: 9, color: T.sub, marginTop: 2 }}>{s.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// RESULTS SCENE
+const SceneResults = ({ progress }) => {
+  const opacity = progress < 0.1 ? progress * 10 : progress > 0.85 ? (1 - progress) * 6.7 : 1;
+  const p = Math.min(progress * 2, 1);
+  const potCount   = Math.round(p * 49000);
+  const turboRate  = Math.round(p * 94);
+  const reduction  = Math.round(p * 96);
+
+
+  return (
+    <div style={{ opacity, padding: "32px 48px" }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.3em", color: T.turbo, marginBottom: 8 }}>EMPIRICAL EVIDENCE</div>
+      <div style={{ fontSize: 36, fontWeight: 800, color: T.text, marginBottom: 32 }}>
+        Base Sepolia Testnet Results
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
+        {[
+          { label: "PoT Records",    value: potCount.toLocaleString() + "+", unit: "verified", color: T.turbo },
+          { label: "TURBO Rate",     value: turboRate + "%",                  unit: "honest nodes", color: T.grg },
+          { label: "Overhead Cut",   value: reduction + "%",                  unit: "vs PBFT", color: T.blue },
+        ].map(s => (
+          <div key={s.label} style={{
+            background: T.panel, border: `1px solid ${s.color}33`,
+            borderRadius: 12, padding: "24px 20px", textAlign: "center",
+            boxShadow: `0 0 24px ${s.color}0a`,
+          }}>
+            <div style={{ fontSize: 11, color: T.sub, letterSpacing: "0.15em", marginBottom: 8 }}>{s.label}</div>
+            <div style={{
+              fontSize: 42, fontWeight: 900, color: s.color,
+              fontFamily: "monospace", lineHeight: 1,
+            }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: T.sub, marginTop: 6 }}>{s.unit}</div>
+          </div>
+        ))}
+      </div>
+      {/* Progress bars */}
+      <div style={{
+        background: T.panel, border: `1px solid ${T.border}`,
+        borderRadius: 12, padding: "20px 24px",
+      }}>
+        {[
+          { label: "Byzantine Detection Accuracy", value: 100,           color: T.grg   },
+          { label: "TURBO Node Ratio",             value: turboRate,     color: T.turbo },
+          { label: "Consensus Overhead Reduction", value: reduction,     color: T.blue  },
+        ].map(b => (
+          <div key={b.label} style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ fontSize: 12, color: T.sub }}>{b.label}</span>
+              <span style={{ fontSize: 12, color: b.color, fontFamily: "monospace", fontWeight: 700 }}>{b.value}%</span>
+            </div>
+            <div style={{ height: 6, background: T.border, borderRadius: 3, overflow: "hidden" }}>
+              <div style={{
+                height: "100%", width: `${b.value * p}%`,
+                background: `linear-gradient(90deg, ${b.color}88, ${b.color})`,
+                borderRadius: 3, transition: "width 0.1s",
+              }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+
+// FUTURE SCENE
+const SceneFuture = ({ progress }) => {
+  const opacity = progress < 0.1 ? progress * 10 : 1;
+  return (
+    <div style={{ opacity, padding: "40px 48px", textAlign: "center", position: "relative" }}>
+      <Glow color={T.turbo} size={500} opacity={0.06} />
+      <Glow color={T.grg}   size={300} x="70%" y="60%" opacity={0.05} />
+      <div style={{ fontSize: 11, letterSpacing: "0.4em", color: T.grg, marginBottom: 20 }}>IMPLICATIONS</div>
+      <div style={{
+        fontSize: 40, fontWeight: 900, color: T.text, lineHeight: 1.1, marginBottom: 20,
+      }}>
+        Beyond Blockchain.<br/>
+        <span style={{
+          background: `linear-gradient(135deg, ${T.turbo}, ${T.grg})`,
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+        }}>Any Distributed System.</span>
+      </div>
+      <div style={{ fontSize: 15, color: T.sub, maxWidth: 520, margin: "0 auto 40px", lineHeight: 1.8 }}>
+        Any protocol requiring Byzantine fault tolerance can substitute
+        GRG pipeline for BFT consensus, reducing O(n²) overhead to O(1).
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, maxWidth: 640, margin: "0 auto 40px" }}>
+        {[
+          { icon: "⛓",  label: "Blockchain",  sub: "MEV elimination" },
+          { icon: "🤖", label: "AI Agents",   sub: "Temporal ordering" },
+          { icon: "🛰",  label: "Satellite",   sub: "LEO broadcast" },
+          { icon: "🏛",  label: "Finance",     sub: "MiFID II RTS 25" },
+        ].map(s => (
+          <div key={s.label} style={{
+            background: T.panel, border: `1px solid ${T.turbo}22`,
+            borderRadius: 10, padding: "16px 12px", textAlign: "center",
+          }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
+            <div style={{ fontSize: 12, color: T.text, fontWeight: 700 }}>{s.label}</div>
+            <div style={{ fontSize: 10, color: T.sub, marginTop: 4 }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{
+        display: "inline-flex", gap: 32, padding: "16px 40px",
+        background: `${T.turbo}08`, border: `1px solid ${T.turbo}33`,
+        borderRadius: 40,
+      }}>
+        {[
+          { label: "npm install openttt", color: T.turbo },
+          { label: "IETF draft-helmprotocol-tttps-00", color: T.grg },
+          { label: "EIP-8201", color: T.blue },
+        ].map(s => (
+          <span key={s.label} style={{ fontSize: 11, color: s.color, fontFamily: "monospace" }}>{s.label}</span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+
+// ─── MAIN ────────────────────────────────────────────────────────────────────
+export default function GRGExplainer() {
+  const [sceneIdx, setSceneIdx]     = useState(0);
+  const [playing, setPlaying]       = useState(true);
+  const [elapsed, setElapsed]       = useState(0);
+  const [totalPct, setTotalPct]     = useState(0);
+  const intervalRef                 = useRef(null);
+  const startRef                    = useRef(Date.now());
+  const elapsedRef                  = useRef(0);
+
+
+  const currentScene  = SCENES[sceneIdx];
+  const sceneProgress = Math.min(elapsed / currentScene.duration, 1);
+
+
+  // total progress
+  const totalDur   = SCENES.reduce((a, s) => a + s.duration, 0);
+  const doneMs     = SCENES.slice(0, sceneIdx).reduce((a, s) => a + s.duration, 0);
+
+
+  useEffect(() => {
+    if (!playing) return;
+    intervalRef.current = setInterval(() => {
+      const delta = Date.now() - startRef.current;
+      elapsedRef.current = delta;
+      setElapsed(delta);
+      setTotalPct(Math.min((doneMs + delta) / totalDur, 1));
+      if (delta >= currentScene.duration) {
+        if (sceneIdx < SCENES.length - 1) {
+          setSceneIdx(i => i + 1);
+          setElapsed(0);
+          startRef.current = Date.now();
+          elapsedRef.current = 0;
+        } else {
+          setPlaying(false);
+        }
+      }
+    }, 30);
+    return () => clearInterval(intervalRef.current);
+  }, [playing, sceneIdx, currentScene.duration, doneMs, totalDur]);
+
+
+  const goToScene = (i) => {
+    setSceneIdx(i);
+    setElapsed(0);
+    startRef.current = Date.now();
+    setPlaying(true);
+  };
+
+
+  const toggle = () => {
+    if (!playing) startRef.current = Date.now() - elapsedRef.current;
+    setPlaying(p => !p);
+  };
+
+
+  const sceneMap = {
+    title:     <SceneTitle     progress={sceneProgress} />,
+    problem:   <SceneProblem   progress={sceneProgress} />,
+    shannon:   <SceneShannon   progress={sceneProgress} />,
+    pipeline:  <ScenePipeline  progress={sceneProgress} />,
+    byzantine: <SceneByzantine progress={sceneProgress} />,
+    results:   <SceneResults   progress={sceneProgress} />,
+    future:    <SceneFuture    progress={sceneProgress} />,
+  };
+
+
+  return (
+    <div style={{
+      background: T.bg, minHeight: "100vh", color: T.text,
+      fontFamily: "'Courier New', 'SF Mono', monospace",
+      display: "flex", flexDirection: "column",
+    }}>
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+      `}</style>
+      <Scanline />
+
+
+      {/* Top bar */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "12px 32px", borderBottom: `1px solid ${T.border}`,
+        background: T.panel, position: "relative", zIndex: 20,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <span style={{ fontSize: 16, fontWeight: 900, color: T.turbo, letterSpacing: "0.1em" }}>GRG</span>
+          <span style={{ fontSize: 10, color: T.sub, letterSpacing: "0.2em" }}>PIPELINE EXPLAINER</span>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {SCENES.map((s, i) => (
+            <button key={s.id} onClick={() => goToScene(i)} style={{
+              background: i === sceneIdx ? `${T.turbo}22` : "transparent",
+              border: `1px solid ${i === sceneIdx ? T.turbo + "66" : T.border}`,
+              color: i === sceneIdx ? T.turbo : T.sub,
+              borderRadius: 6, padding: "4px 10px", fontSize: 10,
+              cursor: "pointer", letterSpacing: "0.05em",
+              transition: "all 0.2s",
+            }}>{s.label}</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={toggle} style={{
+            background: `${T.turbo}18`, border: `1px solid ${T.turbo}44`,
+            color: T.turbo, borderRadius: 6, padding: "6px 16px",
+            cursor: "pointer", fontSize: 11, fontWeight: 700,
+            letterSpacing: "0.1em",
+          }}>
+            {playing ? "⏸ PAUSE" : "▶ PLAY"}
+          </button>
+        </div>
+      </div>
+
+
+      {/* Scene */}
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        <Glow color={T.bg} size={800} opacity={1} />
+        {sceneMap[currentScene.id]}
+      </div>
+
+
+      {/* Progress bar + timeline */}
+      <div style={{
+        padding: "12px 32px 16px",
+        borderTop: `1px solid ${T.border}`,
+        background: T.panel,
+      }}>
+        {/* Total progress */}
+        <div style={{ height: 2, background: T.border, borderRadius: 2, marginBottom: 10, overflow: "hidden" }}>
+          <div style={{
+            height: "100%", width: `${totalPct * 100}%`,
+            background: `linear-gradient(90deg, ${T.turbo}, ${T.grg})`,
+            transition: "width 0.1s linear",
+          }} />
+        </div>
+        {/* Scene markers */}
+        <div style={{ position: "relative", height: 16 }}>
+          {SCENES.map((s, i) => {
+            const pos = SCENES.slice(0, i).reduce((a, x) => a + x.duration, 0) / totalDur * 100;
+            return (
+              <div key={s.id} style={{
+                position: "absolute", left: `${pos}%`,
+                transform: "translateX(-50%)",
+                fontSize: 9, color: i === sceneIdx ? T.turbo : T.sub,
+                letterSpacing: "0.05em", cursor: "pointer",
+                fontWeight: i === sceneIdx ? 700 : 400,
+              }} onClick={() => goToScene(i)}>
+                {i + 1}. {s.label}
+              </div>
+            );
+          })}
+        </div>
+        {/* Scene progress */}
+        <div style={{
+          marginTop: 8, height: 2, background: T.border,
+          borderRadius: 2, overflow: "hidden",
+        }}>
+          <div style={{
+            height: "100%", width: `${sceneProgress * 100}%`,
+            background: T.turbo + "88",
+            transition: "width 0.03s linear",
+          }} />
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -17,17 +17,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // sdk/src/index.ts
 // 서버 내부 전용 (npm pack에서 제외):
 //   grg_forward, grg_inverse, grg_pipeline, golay, reed_solomon
-//   adaptive_switch (GRG 의존), auto_mint (GRG 의존)
+//   auto_mint (GRG 의존)
 // 위 모듈은 서버 코드에서 직접 경로로 import할 것.
 __exportStar(require("./evm_connector"), exports);
 __exportStar(require("./x402_enforcer"), exports);
-__exportStar(require("./ttt_builder"), exports);
+__exportStar(require("./adaptive_switch"), exports);
+// ttt_builder omitted — server-internal only
 __exportStar(require("./protocol_fee"), exports);
 __exportStar(require("./pool_registry"), exports);
 __exportStar(require("./v4_hook"), exports);
 __exportStar(require("./logger"), exports);
 __exportStar(require("./types"), exports);
-__exportStar(require("./ttt_client"), exports);
+// ttt_client omitted — requires auto_mint (server-internal, not in public SDK)
 __exportStar(require("./http_client"), exports);
 __exportStar(require("./time_synthesis"), exports);
 __exportStar(require("./dynamic_fee"), exports);
