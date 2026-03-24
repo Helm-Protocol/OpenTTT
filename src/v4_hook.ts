@@ -1,9 +1,17 @@
 import { ethers } from "ethers";
 import { EVMConnector } from "./evm_connector";
-import { ProtocolFeeCollector } from "./protocol_fee";
-import { FeeCalculation } from "./dynamic_fee";
 import { BeforeSwapParams, AfterSwapParams } from "./types";
 import { logger } from "./logger";
+
+// Monetization types moved to private helm repo (fee-modules)
+// Kept as minimal stubs for backward-compatible optional params
+export interface FeeCalculation {
+  feeAmount: bigint;
+  tier: string;
+}
+export interface ProtocolFeeCollector {
+  collectBurnFee(fee: FeeCalculation, signature: string, sender: string, nonce: bigint, deadline: number): Promise<void>;
+}
 
 /**
  * UniswapV4Hook - TTT-based Uniswap V4 Hook Simulation (SDK-side)

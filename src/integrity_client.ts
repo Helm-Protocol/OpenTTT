@@ -17,13 +17,15 @@ export interface IntegrityVerifyResult {
 export class IntegrityClient {
   private baseUrl: string;
   private timeoutMs: number;
+  private apiKey: string | undefined;
 
   constructor(
     baseUrl: string = "https://integrity.helmprotocol.com/api/v1",
-    options?: { timeoutMs?: number }
+    options?: { timeoutMs?: number; apiKey?: string }
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.timeoutMs = options?.timeoutMs ?? 5000;
+    this.apiKey = options?.apiKey ?? (typeof process !== "undefined" ? process.env["INTEGRITY_API_KEY"] : undefined);
   }
 
   /**
@@ -42,7 +44,10 @@ export class IntegrityClient {
     try {
       const resp = await fetch(`${this.baseUrl}/encode`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(this.apiKey ? { "X-Integrity-Key": this.apiKey } : {}),
+        },
         body: JSON.stringify({
           data: Buffer.from(data).toString("hex"),
           chainId: chainId,
@@ -79,7 +84,10 @@ export class IntegrityClient {
     try {
       const resp = await fetch(`${this.baseUrl}/verify`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(this.apiKey ? { "X-Integrity-Key": this.apiKey } : {}),
+        },
         body: JSON.stringify({
           data: Buffer.from(data).toString("hex"),
           shards: originalShards.map((s) => Buffer.from(s).toString("hex")),
