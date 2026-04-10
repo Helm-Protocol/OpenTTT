@@ -23,3 +23,7 @@ export * from "./ct_log";
 export * from "./trust_store";
 export * from "./integrity_client";
 export * from "./osnma_source";
+// TTTPS -02: TLS binding_key implementation (draft-helmprotocol-tttps-02 Section 7.1)
+export * from "./tls_binding";
+export * from "./pot_frame";
+export * from "./pot_verifier";
