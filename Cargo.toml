@@ -1,8 +1,8 @@
 [package]
 name    = "openttt"
-version = "0.2.12"
+version = "0.2.13"
 edition = "2021"
-description = "OpenTTT — PoT Issuer with Roughtime chain"
+description = "OpenTTT — PoT Issuer with Roughtime chain, Ed25519, HMAC"
 license     = "BSL-1.1"
 repository  = "https://github.com/Helm-Protocol/OpenTTT"
 
@@ -21,15 +21,22 @@ std     = []
 no_std  = []
 
 [dependencies]
-tokio      = { version = "1", features = ["full"] }
-sha2       = "0.10"
-rand       = "0.8"
-hex        = "0.4"
-serde      = { version = "1", features = ["derive"] }
-serde_json = "1"
-axum       = "0.8"
-tracing    = "0.1"
+tokio           = { version = "1",    features = ["full"] }
+sha2            = "0.10"
+rand            = "0.8"
+hex             = "0.4"
+serde           = { version = "1",    features = ["derive"] }
+serde_json      = "1"
+axum            = "0.8"
+tracing         = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# CRITICAL gaps — now real
+ed25519-dalek   = { version = "2",    features = ["rand_core"] }
+hmac            = "0.12"
+# OSNMA — ECDSA P-256
+p256            = { version = "0.13", features = ["ecdsa"] }
+# keccak256 for ctx_id binding (§5.2)
+sha3            = "0.10"
 
 [dev-dependencies]
 tokio-test = "0.4"
