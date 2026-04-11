@@ -1,6 +1,6 @@
 //! Roughtime chain construction and verification.
 use super::types::{RoughtimeAttestation, RoughtimeChain};
-use sha2::{Digest, Sha256, Sha512};
+use sha2::{Digest, Sha256};
 
 pub const CHAIN_SPREAD_TOLERANCE_SECS: u64 = 2;
 pub const MIN_CHAIN_LEN: usize = 3;

@@ -1,31 +1,41 @@
 [package]
-name = "openttt"
+name    = "openttt"
 version = "0.2.12"
 edition = "2021"
-description = "OpenTTT — TLS TimeToken SDK with Roughtime chain for PoT Issuer"
-license = "BSL-1.1"
-repository = "https://github.com/Helm-Protocol/OpenTTT"
+description = "OpenTTT — PoT Issuer with Roughtime chain"
+license     = "BSL-1.1"
+repository  = "https://github.com/Helm-Protocol/OpenTTT"
 
 [[bin]]
 name = "openttt-issuer"
-path = "src/roughtime/main_stub.rs"
+path = "src/bin/issuer.rs"
 
 [lib]
 name = "openttt"
 path = "src/roughtime/lib.rs"
 
+[features]
+default = ["server"]
+server  = []
+std     = []
+no_std  = []
+
 [dependencies]
-tokio       = { version = "1",  features = ["full"] }
-sha2        = "0.10"
-rand        = "0.8"
-hex         = "0.4"
-serde       = { version = "1", features = ["derive"] }
-serde_json  = "1"
+tokio      = { version = "1", features = ["full"] }
+sha2       = "0.10"
+rand       = "0.8"
+hex        = "0.4"
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+axum       = "0.8"
+tracing    = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
-tokio-test  = "0.4"
+tokio-test = "0.4"
 
 [profile.release]
 opt-level = 3
-lto = true
+lto       = true
 codegen-units = 1
+strip     = true
