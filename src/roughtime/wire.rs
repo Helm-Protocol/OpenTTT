@@ -178,3 +178,197 @@ mod tests {
         assert_eq!(tags::SREP, u32::from_le_bytes(*b"SREP"));
     }
 }
+
+// ── Extended 175-byte PoT Frame (§7.3, draft-02) ─────────────────────────────
+
+/// Parse 175-byte extended PoT frame:
+///   bytes[0..32]  = binding_key (TLS Exporter)
+///   bytes[32..175] = PoT record (143 bytes §4.1)
+pub fn parse_extended_pot_frame(bytes: &[u8]) -> Option<([u8;32], Vec<u8>)> {
+    if bytes.len() < 175 { return None; }
+    let binding: [u8; 32] = bytes[0..32].try_into().ok()?;
+    let pot = bytes[32..175].to_vec();
+    Some((binding, pot))
+}
+
+/// Build 175-byte extended frame
+pub fn build_extended_pot_frame(binding_key: &[u8;32], pot_record: &[u8]) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(175);
+    buf.extend_from_slice(binding_key);
+    buf.extend_from_slice(pot_record);
+    if buf.len() < 175 { buf.resize(175, 0); }
+    buf
+}
+
+// ── §4.5 Full Verification Pipeline (draft-02 normative) ────────────────────
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum VerifyStep {
+    VersionCheck,
+    BindingKeyCheck,  // §7.1 Ekr requirement
+    HmacGate1,       // §4.5 step 2
+    Ed25519Verify,   // §4.5 step 3
+    RecencyCheck,    // §4.5 step 4
+    NonceFreshness,  // §4.5 step 5
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum VerifyError {
+    UnknownVersion { got: u8 },
+    BindingKeyMismatch,  // §7.1 REJECT
+    HmacFailed,
+    SignatureInvalid,
+    Stale { age_ms: u64, tolerance_ms: u64 },
+    ReplayedNonce,
+}
+
+/// §4.5 verification order (draft-02, with Ekr's binding_key step)
+pub struct VerificationPipeline {
+    pub steps_passed: Vec<VerifyStep>,
+    pub failed_at:    Option<(VerifyStep, VerifyError)>,
+    pub result:       bool,
+}
+
+impl VerificationPipeline {
+    pub fn new() -> Self {
+        Self { steps_passed: vec![], failed_at: None, result: false }
+    }
+
+    /// Step 0: Version check
+    pub fn check_version(&mut self, version: u8) -> &mut Self {
+        if version != 1 {
+            self.failed_at = Some((VerifyStep::VersionCheck, VerifyError::UnknownVersion { got: version }));
+        } else {
+            self.steps_passed.push(VerifyStep::VersionCheck);
+        }
+        self
+    }
+
+    /// Step 0.5: TLS binding_key verify (§7.1 MUST — Ekr normative requirement)
+    /// Call only when TLS session context is available.
+    /// binding_key_ok = (expected_key == received_binding_key)
+    pub fn check_binding_key(&mut self, binding_key_ok: bool) -> &mut Self {
+        if self.failed_at.is_some() { return self; }
+        if !binding_key_ok {
+            self.failed_at = Some((VerifyStep::BindingKeyCheck, VerifyError::BindingKeyMismatch));
+        } else {
+            self.steps_passed.push(VerifyStep::BindingKeyCheck);
+        }
+        self
+    }
+
+    /// Step 2: HMAC Gate1 (~6 μs, §4.5 — DO NOT proceed to Ed25519 if this fails)
+    pub fn check_hmac(&mut self, hmac_ok: bool) -> &mut Self {
+        if self.failed_at.is_some() { return self; }
+        if !hmac_ok {
+            self.failed_at = Some((VerifyStep::HmacGate1, VerifyError::HmacFailed));
+        } else {
+            self.steps_passed.push(VerifyStep::HmacGate1);
+        }
+        self
+    }
+
+    /// Step 3: Ed25519 (~100 μs)
+    pub fn check_signature(&mut self, sig_ok: bool) -> &mut Self {
+        if self.failed_at.is_some() { return self; }
+        if !sig_ok {
+            self.failed_at = Some((VerifyStep::Ed25519Verify, VerifyError::SignatureInvalid));
+        } else {
+            self.steps_passed.push(VerifyStep::Ed25519Verify);
+        }
+        self
+    }
+
+    /// Step 4: Recency check
+    pub fn check_recency(&mut self, age_ms: u64, tolerance_ms: u64) -> &mut Self {
+        if self.failed_at.is_some() { return self; }
+        if age_ms > tolerance_ms {
+            self.failed_at = Some((VerifyStep::RecencyCheck, VerifyError::Stale { age_ms, tolerance_ms }));
+        } else {
+            self.steps_passed.push(VerifyStep::RecencyCheck);
+        }
+        self
+    }
+
+    /// Step 5: Nonce freshness
+    pub fn check_nonce(&mut self, is_fresh: bool) -> &mut Self {
+        if self.failed_at.is_some() { return self; }
+        if !is_fresh {
+            self.failed_at = Some((VerifyStep::NonceFreshness, VerifyError::ReplayedNonce));
+        } else {
+            self.steps_passed.push(VerifyStep::NonceFreshness);
+            self.result = true;
+        }
+        self
+    }
+}
+
+#[cfg(test)]
+mod extended_tests {
+    use super::*;
+
+    #[test]
+    fn test_extended_frame_parse() {
+        let binding = [0xabu8; 32];
+        let pot = vec![0x11u8; 143];
+        let frame = build_extended_pot_frame(&binding, &pot);
+        assert_eq!(frame.len(), 175);
+        let (b, p) = parse_extended_pot_frame(&frame).unwrap();
+        assert_eq!(b, binding);
+        assert_eq!(p, pot);
+    }
+
+    #[test]
+    fn test_extended_frame_too_short_returns_none() {
+        assert!(parse_extended_pot_frame(&[0u8; 100]).is_none());
+    }
+
+    #[test]
+    fn test_verification_pipeline_happy_path() {
+        let mut vp = VerificationPipeline::new();
+        vp.check_version(1)
+          .check_binding_key(true)
+          .check_hmac(true)
+          .check_signature(true)
+          .check_recency(50, 200)  // 50ms < 200ms tolerance
+          .check_nonce(true);
+        assert!(vp.result);
+        assert!(vp.failed_at.is_none());
+        assert_eq!(vp.steps_passed.len(), 6);
+    }
+
+    #[test]
+    fn test_binding_key_fail_stops_pipeline() {
+        let mut vp = VerificationPipeline::new();
+        vp.check_version(1)
+          .check_binding_key(false)  // §7.1 REJECT
+          .check_hmac(true)          // should not run
+          .check_signature(true);    // should not run
+        assert!(!vp.result);
+        assert_eq!(vp.failed_at.as_ref().map(|(s,_)| s), Some(&VerifyStep::BindingKeyCheck));
+        // HMAC and Ed25519 NOT in steps_passed (short-circuit)
+        assert!(!vp.steps_passed.contains(&VerifyStep::HmacGate1));
+    }
+
+    #[test]
+    fn test_hmac_fail_prevents_ed25519() {
+        let mut vp = VerificationPipeline::new();
+        vp.check_version(1)
+          .check_binding_key(true)
+          .check_hmac(false)     // §4.5: DO NOT proceed to Ed25519
+          .check_signature(true);
+        assert_eq!(vp.failed_at.as_ref().map(|(s,_)| s), Some(&VerifyStep::HmacGate1));
+        assert!(!vp.steps_passed.contains(&VerifyStep::Ed25519Verify));
+    }
+
+    #[test]
+    fn test_stale_pot_rejected() {
+        let mut vp = VerificationPipeline::new();
+        vp.check_version(1)
+          .check_binding_key(true)
+          .check_hmac(true)
+          .check_signature(true)
+          .check_recency(2001, 2000); // 1ms over T0_epoch tolerance
+        assert!(matches!(vp.failed_at, Some((VerifyStep::RecencyCheck, VerifyError::Stale { .. }))));
+    }
+}
