@@ -1,0 +1,56 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "defu"
+        reason: "dev-only, no production attack vector"
+
+  - package-ecosystem: "npm"
+    directory: "/subgraph"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "@graphprotocol/graph-cli"
+        reason: "internal legacy chain, no production attack vector"
+      - dependency-name: "glob"
+        reason: "build tool transitive dep"
+      - dependency-name: "gluegun"
+        reason: "build tool transitive dep"
+      - dependency-name: "cross-spawn"
+        reason: "build tool transitive dep"
+      - dependency-name: "semver"
+        reason: "build tool transitive dep"
+      - dependency-name: "immutable"
+        reason: "build tool transitive dep"
+
+  - package-ecosystem: "npm"
+    directory: "/contracts"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "hardhat"
+        reason: "hardhat toolbox internal chain, devDependency only"
+      - dependency-name: "mocha"
+        reason: "devDependency, no production attack vector"
+      - dependency-name: "eth-gas-reporter"
+        reason: "devDependency, no production attack vector"
+      - dependency-name: "solidity-coverage"
+        reason: "devDependency, no production attack vector"
+
+  - package-ecosystem: "npm"
+    directory: "/mcp"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/plugins/elizaos-plugin-openttt"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/mcp/packages/x402-pot"
+    schedule:
+      interval: "weekly"

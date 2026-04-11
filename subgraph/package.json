@@ -10,7 +10,16 @@
     "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 helm-protocol/openttt-sepolia"
   },
   "dependencies": {
-    "@graphprotocol/graph-cli": "^0.68.0",
+    "@graphprotocol/graph-cli": "^0.98.1",
     "@graphprotocol/graph-ts": "^0.32.0"
+  },
+  "overrides": {
+    "apisauce": "^3.0.1",
+    "axios": "^1.9.0",
+    "cross-spawn": ">=7.0.5",
+    "semver": ">=7.5.2",
+    "undici": ">=5.28.5",
+    "immutable": ">=4.3.7",
+    "glob": ">=10.4.1"
   }
 }

@@ -48,3 +48,7 @@ src/ttt_client.ts
 src/grg_*.ts
 src/golay.ts
 src/reed_solomon.ts
+
+# Rust build artifacts
+target/
+Cargo.lock
