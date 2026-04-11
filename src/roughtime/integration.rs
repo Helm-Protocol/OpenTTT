@@ -12,7 +12,7 @@ mod tests {
     use crate::grg_bridge::{assemble_pot_payload, build_grg_input};
     use crate::pot_crypto::{IssuerKeyPair, hmac_gate1_compute, hmac_gate1_verify, derive_ctx_key, NonceStore};
     use crate::adaptive_switch::{AdaptiveSwitch, AdaptiveMode};
-    use crate::no_std_verify::{parse_pot_header, check_recency};
+    use crate::no_std_verify::check_recency;
     use crate::osnma::default_osnma_key;
     use sha2::{Digest, Sha256};
 
