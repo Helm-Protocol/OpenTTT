@@ -32,5 +32,10 @@
   ],
   "engines": {
     "node": ">=18"
+  },
+  "overrides": {
+    "handlebars": ">=4.7.9",
+    "picomatch": ">=4.0.2",
+    "defu": ">=6.1.4"
   }
 }
