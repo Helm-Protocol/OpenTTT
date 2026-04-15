@@ -1,295 +1,318 @@
-<div align="center">
+# OpenTTT
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/TTTPS-Proof--of--Time-00e87a?style=for-the-badge&labelColor=0c0f14">
-  <img src="https://img.shields.io/badge/TTTPS-Proof--of--Time-00e87a?style=for-the-badge&labelColor=0c0f14" alt="TTTPS">
-</picture>
+> **Reference implementation of [draft-helmprotocol-tttps-02](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)**
 
-# OpenTTT — Proof-of-Time SDK
+**OpenSSL for Time** — TLS-grade Proof-of-Time for distributed systems.
 
-**`draft-helmprotocol-tttps-02`  ·  Rust + TypeScript  ·  IETF 126 BoF target**
+OpenTTT provides cryptographic proof that an event occurred at a specific time, independently verifiable by anyone without trusting the issuer. Where TLS authenticates *identity*, OpenTTT proves *when*.
 
-[![Tests](https://img.shields.io/badge/tests-99%20passing-00e87a?style=flat-square&logo=rust&logoColor=white&labelColor=0c0f14)](https://github.com/Helm-Protocol/OpenTTT)
-[![IETF Draft](https://img.shields.io/badge/IETF-draft--helmprotocol--tttps--02-2d6ef7?style=flat-square&labelColor=0c0f14)](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)
-[![License](https://img.shields.io/badge/license-Apache--2.0-f5a623?style=flat-square&labelColor=0c0f14)](LICENSE)
+[![npm](https://img.shields.io/npm/v/openttt)](https://www.npmjs.com/package/openttt)
+[![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
+[![CI](https://github.com/Helm-Protocol/OpenTTT/actions/workflows/ci.yml/badge.svg)](https://github.com/Helm-Protocol/OpenTTT/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-99%20passing-brightgreen)]()
 
-```
-TLS proves who.   DNSSEC proves what.   Nothing proves when — until now.
-```
-
-</div>
-
----
-
-## What is TTTPS?
-
-**TTTPS** (Trusted Timestamp Protocol) is the missing temporal trust primitive in internet infrastructure.
-
-The **Shannon Gap**: TLS authenticates *identity*, DNSSEC authenticates *content*, but no standard protocol mathematically proves *when* an event occurred. TTTPS closes this gap.
-
-A **Proof-of-Time (PoT)** is a cryptographically verifiable record that a specific event occurred at a specific time, independently verifiable by anyone without trusting the issuer.
+> If this project is useful to you, please [star it on GitHub](https://github.com/Helm-Protocol/OpenTTT) — it helps others find it.
 
 ```
-PoT = GRG_Commitment || Ed25519_Signature || Roughtime_Chain_Digest
-    where GRG_Commitment = G(P ‖ D_chain, ctx_id)
-          D_chain = SHA-256(k Roughtime attestations)
-```
-
-**Theorem 0 (Inflow-to-Proof):** A forged timestamp T′ ≠ T produces GRG_Commitment′ ≠ GRG_Commitment, causing Ed25519 verification to fail. Issuer timestamp manipulation is *mathematically detectable*, not merely procedurally controlled.
-
----
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────┐
-│  Helm-Protocol/Helm  (Private · Issuer)                  │
-│                                                          │
-│  crates/grg-core/     ← GRG pipeline (IP-protected)    │
-│    G_1: Golomb-Rice compression                         │
-│    R:   Reed-Solomon GF(2⁸) erasure (Vandermonde)       │
-│    G_2: Golay(23,12,7) perfect code  ← d_min=7, t=3   │
-│    H:   HMAC-SHA256 context binding                     │
-│                                                          │
-│  crates/tttps-server/ ← QUIC server (PoC live)         │
-│    quinn QUIC/UDP · ALPN: tttps/1 · Port 4433           │
-│                                                          │
-│  POST /v1/pot/generate  ← GRG + Ed25519 issuance       │
-│  POST /v1/pot/verify    ← Gate2 + HMAC + AS update     │
-└────────────────────────┬─────────────────────────────────┘
-                         │ HTTPS + QUIC/UDP
-                         ▼
-┌──────────────────────────────────────────────────────────┐
-│  Helm-Protocol/OpenTTT  (Public · Verifier SDK)          │
-│                                                          │
-│  src/roughtime/                                          │
-│    chain.rs          Roughtime chain builder             │
-│    pot_crypto.rs     Ed25519 verify + HMAC Gate1        │
-│    wire.rs           TLV parser (draft-19 §5)           │
-│    adaptive_switch   TURBO/FULL state machine           │
-│    quic_transport    §7.2 frame + TLS binding_key       │
-│    no_std_verify     IoT / ARM / FPGA verifier          │
-│    osnma.rs          OSNMA P-256 (Phase 2)              │
-│                                                          │
-│  npm: openttt · PyPI: langchain-openttt                 │
-│  99 tests · release clean                               │
-└──────────────────────────────────────────────────────────┘
+npm install openttt
 ```
 
 ---
 
-## Verification Pipeline (§4.5)
+## Why OpenTTT
+
+Current timestamp verification relies on **trust**: systems assume servers report accurate times. OpenTTT proves whether they did.
+
+| | NTP / System Time | OpenTTT |
+|---|---|---|
+| **Mechanism** | Trust the server | Cryptographic proof |
+| **Enforcement** | None | Economic + cryptographic |
+| **Forgery** | Trivial | Mathematically detectable (Theorem 0) |
+| **Time source** | Single server | Multi-source Roughtime synthesis |
+
+**The core insight** (Theorem 0 — Inflow-to-Proof): A forged timestamp T′ ≠ T produces a different GRG commitment, causing Ed25519 verification to fail. Issuer timestamp manipulation is mathematically detectable, not merely procedurally controlled.
 
 ```
- 0  Version + Future-Timestamp check     <1 ns
- 1a TLS binding_key verify (§7.1)        ~6 µs   HMAC-SHA256
- 1b AEAD early rejection (§9.8)          ~1 µs   ChaCha20-Poly1305
- 2  HMAC Gate1 context binding           ~6 µs   16× cheaper than Ed25519
- 3  Ed25519 verify (session only, 1×)   ~46 µs   EUF-CMA, ed25519-dalek v2
- 4  Recency Gate2 (AdaptiveSwitch)        3 ns   O(1) saturating_sub
- 5  Nonce freshness (NonceStore)         ~1 µs   256-bit HashSet
+GRG_Commitment = GRG(P ‖ D_chain, ctx_id)
+D_chain = SHA-256(k Roughtime attestations, k ≥ 3)
 ```
-
-After session establishment, per-packet cost = AEAD (~1 µs) + Gate2 (3 ns).  
-Ed25519 is **not** repeated per packet.
 
 ---
 
-## Tier Structure (§8)
+## Why OpenTTT, not Google Roughtime?
 
-| Tier | ID | Tolerance | Use Case |
-|------|----|-----------|----------|
-| T0_epoch | 0x0 | 60,000 ms | Epoch ordering |
-| T1_block | 0x1 | 2,000 ms | L2 block finality |
-| T2_slot | 0x2 | 12,000 ms | L1 slot (Ethereum) |
-| T3_micro | 0x3 | 100 ms | High-frequency |
-| **T-s1** | **0x4** | **3,000 ms** | **Deep-space / Earth-Moon RTT** |
+A common question: *"Google Roughtime already solves timestamp verification — why do we need OpenTTT?"*
 
-**T-s1 design:** Earth-Moon one-way = 384,400 km ÷ 299,792 km/s ≈ 1,282 ms. RTT ≈ 2,600 ms. Tolerance 3,000 ms (400 ms headroom). GRG Golay(23,12,7) provides 3-bit error correction per codeword — heritage from Voyager Saturn transmissions (1.0×10⁹ km, 1980).
+The answer: **Roughtime and OpenTTT operate at completely different points in the lifecycle.**
+
+| | Google Roughtime | OpenTTT |
+|---|---|---|
+| **When it acts** | After the fact | Before state is committed |
+| **What it does** | Proves a timestamp was wrong | Rejects invalid timestamps at ingestion |
+| **Enforcement** | Audit trail only | Cryptographic rejection |
+| **Use case** | Security auditing, forensics | Real-time enforcement |
+
+> Roughtime proves time fraud happened. OpenTTT makes time fraud economically irrational before it can happen.
+
+OpenTTT uses Roughtime as its internal time source (k ≥ 3 servers), then adds the GRG integrity pipeline on top.
 
 ---
 
 ## Quick Start
 
-### Verify a PoT (Rust)
+### Try it in 30 seconds
+
+```typescript
+import { HttpOnlyClient } from "openttt";
+
+const client = new HttpOnlyClient();
+const pot = await client.generatePoT();
+console.log(pot.timestamp, pot.confidence, pot.sources);
+
+const valid = client.verifyPoT(pot);
+console.log("Valid:", valid); // true
+```
+
+No external dependencies. Just verified time from independent Roughtime sources (Google, Cloudflare, Chainpoint).
+
+### Rust SDK
 
 ```rust
-use openttt::roughtime::{verify_chain_against_pot, PotRecord};
+use openttt::roughtime::{build_chain, verify_chain_against_pot};
 
-let pot: PotRecord = serde_json::from_str(&pot_json)?;
 let chain = build_chain(&["roughtime.int.cfturnstile.com:2002"]).await?;
 let result = verify_chain_against_pot(&chain, &pot)?;
 // result.gate2_accepted: bool
 // result.age_ms: u64
 ```
 
-### Request a PoT (HTTP)
+---
 
-```bash
-curl -X POST https://api.helm-protocol.io/v1/pot/generate \
-  -H "Content-Type: application/json" \
-  -d '{"ctx_id": "8453:0xYourPool", "tier": 1}'
+## Progressive Disclosure
 
-# Response:
-# {
-#   "timestamp_ns": 1776163055195440671,
-#   "grg_commitment": "29eb57e4242dddc1...",
-#   "issuer_sig": "...",
-#   "tier": "T1_block"
-# }
-```
+OpenTTT is designed around progressive disclosure. Start simple, add control as you need it.
 
-### QUIC PoC Ping-Pong (KTSat)
+```typescript
+// Level 0: Pure verification (no config needed)
+import { HttpOnlyClient } from "openttt";
+const pot = await new HttpOnlyClient().generatePoT();
 
-```bash
-# Clone private Helm repo — run server
-cargo run -p tttps-server --release --bin tttps-server -- 0.0.0.0:4433
+// Level 1: Custom time sources
+import { TTTClient } from "openttt";
+const ttt = await TTTClient.create({ sources: ["google", "cloudflare"] });
 
-# Client ping-pong test
-cargo run -p tttps-server --release --bin tttps-client -- <server-ip>:4433 1
-# Tier 1=T1_block, 3=T3_micro, 4=T-s1(Earth-Moon)
-```
-
-Live result (measured):
-```
-│  TTTPS PoT Ping-Pong  ✓ LIVE QUIC              │
-│  Status : ok                                    │
-│  Tier   : T1_block                              │
-│  Commit : 29eb57e4242dddc1b0cd...               │
-│  RTT    : 494µs                                 │
-│  Gate2  : ✓ ACCEPT                              │
+// Level 2: Custom tiers and verification pipeline
+const pot = await ttt.generate({ tier: "T1_block", ctx_id: "my-context" });
+const ok  = await ttt.verify(pot);
 ```
 
 ---
 
-## GRG Integrity Pipeline (§5)
+## Signer Options
+
+| Type | Use Case | Config |
+|------|----------|--------|
+| `local` | Development, testing | `{ type: "local", privateKey }` |
+| `env` | CI/CD, Docker | `{ type: "env" }` (reads `TTT_PRIVATE_KEY`) |
+| `aws-kms` | Production, key management | `{ type: "aws-kms", keyId }` |
+| `gcp-kms` | GCP deployments | `{ type: "gcp-kms", keyName }` |
+
+---
+
+## Tiers
+
+Tiers define the acceptable time window for a PoT. Tighter tiers → stronger guarantees → higher verification cost.
+
+| Tier | Window | Use Case |
+|------|--------|----------|
+| `T0_epoch` | 60,000 ms | Epoch-level ordering |
+| `T1_block` | 2,000 ms | Block-level ordering **(default)** |
+| `T2_slot` | 12,000 ms | Slot-level (L1) |
+| `T3_micro` | 100 ms | High-frequency applications |
+
+```typescript
+const pot = await ttt.generate({ tier: "T1_block" });
+```
+
+---
+
+## Health Monitoring
+
+```typescript
+ttt.on("turbo",   () => console.log("TURBO mode — 50ms verification"));
+ttt.on("full",    () => console.log("FULL mode  — 127ms verification"));
+ttt.on("warning", (e) => console.warn(e.message));
+
+const health = await ttt.health();
+// { mode: "TURBO", latency_ms: 47, sources: 3 }
+```
+
+---
+
+## Subgraph Testing
+
+OpenTTT uses The Graph subgraph as a test oracle for end-to-end pipeline validation. The subgraph indexes PoT records and allows integration tests to verify on-chain ordering against cryptographic proofs.
+
+```typescript
+// Integration test against subgraph
+import { SubgraphVerifier } from "openttt/testing";
+
+const verifier = new SubgraphVerifier({
+  endpoint: "https://api.thegraph.com/subgraphs/name/helm-protocol/openttt"
+});
+
+const result = await verifier.verifySequence(transactions);
+// { ordered: true, proof_valid: true, latency_ms: 47 }
+```
+
+**[▶ Interactive GRG Pipeline Explainer](https://helm-protocol.github.io/OpenTTT/demo/grg-explainer.html)** — Visual walkthrough of the GRG stages and Byzantine elimination.
+
+---
+
+## Networks
+
+| Network | Chain ID | Factory |
+|---------|----------|---------|
+| Testnet | — | `TTTClient.forTestnet(config)` |
+| Custom  | any | `TTTClient.create({ rpcUrl, chainId })` |
+
+---
+
+## API Reference
+
+### Client
+
+| Method | Description |
+|--------|-------------|
+| `TTTClient.create(config)` | Create client with explicit config |
+| `TTTClient.forTestnet(config)` | Testnet factory |
+| `ttt.generate(opts?)` | Generate a new PoT |
+| `ttt.verify(pot)` | Verify a PoT (Gate2 + HMAC + Ed25519) |
+| `ttt.health()` | Get current mode and latency |
+| `ttt.startAutoMint()` | Background PoT generation |
+| `ttt.stop()` | Graceful shutdown |
+
+### Verification Pipeline (§4.5, draft-02)
 
 ```
-Encode:  Data → [Golomb-Rice G_1] → [Reed-Solomon R] → [Golay(23,12,7) G_2] → [HMAC H] → Shards
-Decode:  Shards → [HMAC verify] → [Golay correct] → [RS reconstruct] → [Golomb decompress] → Data
+0   Future-timestamp check     < 1 ns
+1a  TLS binding_key verify     ~ 6 µs   (§7.1)
+1b  AEAD early rejection       ~ 1 µs   (§9.8, ChaCha20-Poly1305)
+2   HMAC Gate1                 ~ 6 µs   (context binding)
+3   Ed25519 verify             ~46 µs   (session only, not per-packet)
+4   Recency Gate2              ~  3 ns  (O(1) saturating_sub)
+5   Nonce freshness            ~ 1 µs   (256-bit dedup)
+```
+
+### TimeSynthesis
+
+| Method | Description |
+|--------|-------------|
+| `TimeSynthesis.synthesize(sources)` | Multi-source time synthesis |
+| `TimeSynthesis.getDigest(pot)` | SHA-256 chain digest for GRG input |
+
+---
+
+## GRG Integrity Pipeline (§5, draft-02)
+
+```
+Encode: Data → [Golomb-Rice G₁] → [Reed-Solomon R] → [Golay(23,12,7) G₂] → [HMAC H] → Shards
+Decode: Shards → [HMAC verify] → [Golay correct] → [RS reconstruct] → [Golomb decompress] → Data
 ```
 
 | Stage | Algorithm | Property |
 |-------|-----------|----------|
-| G_1 | Golomb-Rice (m=16) | Timestamp delta compression |
-| R | RS GF(2⁸) Vandermonde k=4 n=6 | 33% packet loss tolerance |
-| G_2 | **Golay(23,12,7)** | Perfect code · d_min=7 · t=3 · 1.917× bandwidth |
-| H | HMAC-SHA256 | Context binding (pool/chain separation) |
+| G₁ | Golomb-Rice (m=16) | Timestamp delta compression |
+| R  | RS GF(2⁸) Vandermonde k=4 n=6 | 33% packet loss tolerance |
+| G₂ | **Golay(23,12,7)** | Perfect binary code · d_min=7 · t=3 · 1.917× |
+| H  | HMAC-SHA256 | Context binding (pool/chain separation) |
 
-**Why G23 not G24:** G23 [23,12,7] is a *perfect binary code* — the Hamming sphere-packing bound is achieved exactly (4096 codewords × 2048 sphere = 2²³). Bandwidth: 1.917× vs G24's 2.000×. At 10¹² nodes, 4.17% bandwidth savings per shard.
-
----
-
-## Security Properties
-
-| Attack | Defense | Bound |
-|--------|---------|-------|
-| NTP MITM future +500s | `if ts > now { REJECT }` (§4.5) | Deterministic |
-| BGP delay +2,100ms | Gate2 recency (T1_block 2,000ms tol) | Deterministic |
-| Sybil 2/4 +600ms | min-max spread > 500ms stratum_tolerance | Deterministic |
-| GRG 1-bit commitment flip | HMAC + Ed25519 double-seal (Theorem 0) | P(forge) < 2⁻¹²⁸ |
-| Nonce replay (1M test) | NonceStore HashSet — 1M in 127ms | Deterministic |
-| Malicious issuer +200s | Roughtime spread detection | 200s >> 500ms tol |
-| Cross-session replay | TLS-Exporter binding_key (§7.1, Ekr) | Session-specific |
-| AEAD tag tamper | ChaCha20-Poly1305 | P(forge) < 2⁻⁶⁴ |
-| QUIC flood (1M streams) | AEAD early reject at ~1µs | 1,000,000/1,000,000 |
-
-P(Byzantine detect) ≥ 1 − 2⁻⁶¹
+**Why G23?** G23 [23,12,7] achieves the Hamming sphere-packing bound exactly (perfect code). Bandwidth 1.917× vs G24's 2.000× — at scale, 4.17% bandwidth savings per shard.
 
 ---
 
-## Transport (§7, QUIC)
-
-TTTPS operates over QUIC with ALPN `tttps/1`.
+## Architecture
 
 ```
-Client                        Tttps Issuer
-  |-- QUIC ClientHello ------>|
-  |<- ServerHello + PoT cert -|
-  |-- PoT Request (stream) -->|  {"ctx_id", "tier", "nonce_hex"}
-  |<- PoT Response (stream) --|  {"timestamp_ns", "grg_commitment", "sig"}
-  |-- Gate2 verify ---------->|  local, O(1), no GRG internals exposed
+┌─────────────────────────────────────────────────────────┐
+│  Helm Issuer (Private)                                  │
+│  grg-core: GRG pipeline + Ed25519 signing              │
+│  POST /v1/pot/generate                                  │
+│  POST /v1/pot/verify                                    │
+└──────────────────────────┬──────────────────────────────┘
+                           │ HTTPS / QUIC (ALPN: tttps/1)
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│  OpenTTT (Public — this repo)                           │
+│  src/roughtime/                                         │
+│    chain.rs          Roughtime chain builder            │
+│    pot_crypto.rs     Ed25519 verify + HMAC Gate1       │
+│    wire.rs           TLV parser (draft-19 §5)          │
+│    adaptive_switch   TURBO/FULL state machine          │
+│    quic_transport    §7.2 frame + TLS binding_key      │
+│    no_std_verify     IoT / ARM / FPGA verifier         │
+│  npm: openttt · PyPI: langchain-openttt                │
+│  99 tests · release clean                              │
+└─────────────────────────────────────────────────────────┘
 ```
-
-**TLS binding_key (§7.1, Ekr requirement):**
-```
-binding_key = TLS-Exporter("EXPORTER-tttps-pot-binding", pot_without_sig, 32)
-```
-Prevents cross-session PoT replay.
 
 ---
 
-## OSNMA Integration (Phase 2)
+## Error Handling
 
-OSNMA (Open Service Navigation Message Authentication, ESA/EUSPA) provides satellite-based authenticated timing. GSC Initial Service: July 24, 2025.
+All SDK errors extend `TTTBaseError`:
 
-```rust
-let source = OsnmaTimeSource::new(GscPublicKey::PKI_2);
-let auth_time = source.get_authenticated_time().await?;
-// P-256 signature over Galileo broadcast — provides L0 satellite time anchor
+```typescript
+try {
+  const ttt = await TTTClient.create({ ... });
+  await ttt.generate();
+} catch (e) {
+  if (e instanceof TTTBaseError) {
+    console.error(e.code);    // "STALE_POT" | "HMAC_FAIL" | "ED25519_FAIL" ...
+    console.error(e.message);
+    console.error(e.context);
+  }
+}
 ```
 
-Used as an additional Roughtime server in the chain, providing hardware-root-of-trust timing without relying on IP infrastructure.
-
 ---
 
-## Test Coverage
+## Graceful Shutdown
 
-```
-cargo test --lib  →  99 tests · 0 failed · release clean
-
-adaptive_switch   9/9   TLA+ verified invariants
-chain             8/8   Roughtime chain + causal ordering
-pot_crypto       10/10  Ed25519 + HMAC Gate1 (real crypto)
-wire             12/12  TLV parser (draft-19 §5)
-quic_transport   10/10  §7.2 frame + TLS binding_key
-no_std_verify    10/10  IoT/ARM/FPGA verifier
-osnma             8/8   OSNMA P-256 real verification
-integration       7/7   E2E pipeline
-adversarial      10/10  Attack scenarios
+```typescript
+process.on("SIGTERM", async () => {
+  await ttt.stop();
+  process.exit(0);
+});
 ```
 
-Helm grg-core: 72 tests · 0 failed (G23, RS, GRG pipeline, AEAD, Ed25519, state machine, attack defense)
+---
+
+## Requirements
+
+- Node.js 18+
+- Rust 1.82+ (for Rust SDK)
 
 ---
 
-## Project Status
+## IETF Draft
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| IETF Draft | `draft-helmprotocol-tttps-02` | BoF target: IETF 126, Vienna, July 2026 |
-| Rust SDK | ✅ 99 tests | grg-core + verifier stack |
-| QUIC server | ✅ Live PoC | quinn, ALPN tttps/1, RTT ~494µs |
-| TypeScript SDK | ✅ npm: `openttt` | |
-| OSNMA | ✅ Phase 2 ready | P-256, GSC EUSPA |
-| KTSat PoC | 🔄 Pending LOI | GEO satellite broadcast, T-s1 tier |
+This is the reference implementation of `draft-helmprotocol-tttps-02`.
+
+- [IETF Datatracker](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)
+- [Roughtime RFC 9557](https://www.rfc-editor.org/rfc/rfc9557.html)
 
 ---
 
-## Ecosystem
+## License
 
-```bash
-npm install openttt          # TypeScript/JS SDK
-pip install langchain-openttt  # LangChain integration
-```
+BSL-1.1 — see [LICENSE](LICENSE).
 
-MCP registry · ElizaOS plugin · x402 (Circle) integration available.
+## Contributing
 
----
+Issues and PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## References
+## Learn More
 
-- [IETF Draft](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) — draft-helmprotocol-tttps-02
-- [Roughtime](https://www.rfc-editor.org/rfc/rfc9557.html) — RFC 9557
-- [OSNMA](https://www.euspa.europa.eu/european-space/galileo/services/navigation-message-authentication) — ESA/EUSPA
-- [s2n-quic](https://github.com/aws/s2n-quic) — AWS QUIC implementation (production target)
-- [quinn](https://github.com/quinn-rs/quinn) — Pure Rust QUIC (current PoC)
-
----
-
-<div align="center">
-<sub>
-Helm-Protocol/OpenTTT · Apache-2.0 · 
-<a href="https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/">draft-helmprotocol-tttps-02</a>
-</sub>
-</div>
+- [Draft specification](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)
+- [GRG Pipeline explainer](https://helm-protocol.github.io/OpenTTT/demo/grg-explainer.html)
