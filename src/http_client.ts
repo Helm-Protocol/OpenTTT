@@ -112,6 +112,11 @@ function fetchHttpsDate(name: string, url: string, timeoutMs = 3000): Promise<Ra
 
 // ---------------------------------------------------------------------------
 // HMAC helpers — default sandbox key derived from fixed chain+address strings
+// HMAC key is public by design — context binding, not secrecy.
+// The sandbox key below is a fixed string for local-only verification.
+// In production, the HMAC key is derived from (chainId, poolAddress) and
+// is deterministically recomputable by any party. The security property is
+// tamper detection (integrity), not confidentiality.
 // ---------------------------------------------------------------------------
 
 const SANDBOX_HMAC_SECRET =

@@ -42,12 +42,17 @@ server.tool(
 
 server.tool(
   "pot_verify",
-  "Verify a Proof of Time using its hash and GRG shards. Returns validity, mode (turbo/full), and timestamp.",
+  "Verify a Proof of Time: HMAC integrity first (~6μs), then optional Ed25519 signature (~100μs). Returns validity, mode, and per-check results.",
   {
     potHash: z.string().describe("PoT hash to verify (hex with 0x prefix)"),
     grgShards: z.array(z.string()).describe("Array of hex-encoded GRG integrity shards"),
     chainId: z.number().describe("EVM chain ID (e.g. 84532 for Base Sepolia)"),
     poolAddress: z.string().describe("Uniswap V4 pool address (0x-prefixed)"),
+    signature: z.object({
+      issuerPubKey: z.string().describe("Ed25519 public key (hex-encoded SPKI DER)"),
+      signature: z.string().describe("Ed25519 signature over PoT hash (hex)"),
+      issuedAt: z.string().describe("Unix seconds when the signature was created"),
+    }).optional().describe("Optional Ed25519 signature for non-repudiation verification"),
   },
   async (args) => {
     try {

@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 import type {
   Action,
   ActionExample,
@@ -8,7 +8,13 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
+import { PotSigner, type PotSignature } from "openttt";
 import { getVerifiedTime } from "../providers/timeProvider.js";
+
+// Module-level signer: ephemeral Ed25519 keypair per agent process.
+// A fresh keypair is generated on startup; the public key ships with every PoT
+// so any counterparty can verify the signature without a PKI.
+const _signer = new PotSigner();
 
 // Module-level cache: runtime has no cacheManager in this version of @elizaos/core
 const MAX_CACHE_SIZE = 1000;
@@ -51,6 +57,8 @@ export interface PoTToken {
   nonce: string;
   potHash: string;
   issued_at: string;
+  /** Ed25519 signature over potHash — proves issuer held the private key at issuance */
+  signature: PotSignature;
 }
 
 /**
@@ -90,13 +98,16 @@ export const generatePot: Action = {
     try {
       const vt = await getVerifiedTime();
 
-      // Generate a cryptographically secure nonce (Issue 3 fix)
+      // Generate a cryptographically secure nonce
       const agentId = runtime.agentId ?? "unknown";
       const nonce = randomBytes(16).toString("hex");
 
-      // Compute a stable potHash for cache keying (Issue 1 fix)
-      const potHashRaw = `${agentId}:${vt.timestamp}:${nonce}`;
-      const potHash = Buffer.from(potHashRaw).toString("hex").slice(0, 48);
+      // Compute potHash as SHA-256 of canonical fields — stable cache key and signing target
+      const potHashRaw = `${agentId}:${vt.timestamp}:${vt.sources.join(",")}:${nonce}`;
+      const potHash = createHash("sha256").update(potHashRaw).digest("hex");
+
+      // Sign potHash with Ed25519 — this is what makes the token tamper-evident
+      const signature = _signer.signPot(potHash);
 
       const pot: PoTToken = {
         version: "1.0",
@@ -108,6 +119,7 @@ export const generatePot: Action = {
         nonce,
         potHash,
         issued_at: new Date(vt.timestamp).toISOString(),
+        signature,
       };
 
       // Store PoT keyed by potHash (stable, survives message.id mismatch)

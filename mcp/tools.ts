@@ -96,28 +96,59 @@ export async function potVerify(args: {
   grgShards: string[];
   chainId: number;
   poolAddress: string;
+  signature?: { issuerPubKey: string; signature: string; issuedAt: string };
 }): Promise<unknown> {
   telemetryIncrement("pot_verify");
 
+  // ── Step 1: HMAC integrity via GRG inverse (~6μs) ──
+  // HMAC key is public by design — context binding, not secrecy.
+  // It is derived deterministically from (chainId, poolAddress) via keccak256.
+  // Purpose: binds each shard to its originating chain+pool, preventing
+  // cross-context replay. Anyone can recompute it; the security property
+  // is tamper detection, not key confidentiality.
   const shards = args.grgShards.map((hex) => new Uint8Array(Buffer.from(hex, "hex")));
-  let valid = false;
+  let hmacValid = false;
   let reconstructedSize = 0;
 
   try {
     const recovered = GrgPipeline.processInverse(shards, 0, args.chainId, args.poolAddress);
-    valid = recovered.length > 0;
+    hmacValid = recovered.length > 0;
     reconstructedSize = recovered.length;
   } catch {
-    valid = false;
+    hmacValid = false;
+  }
+
+  // Fast-fail: if HMAC integrity check fails, skip expensive Ed25519 (~100μs)
+  if (!hmacValid) {
+    return serialize({
+      valid: false,
+      reason: "HMAC integrity check failed — GRG shards tampered or mismatched context",
+      mode: adaptiveSwitch.getCurrentMode() === AdaptiveMode.TURBO ? "turbo" : "full",
+      potHash: args.potHash,
+      reconstructedBytes: 0,
+      verifiedAt: Date.now(),
+    });
+  }
+
+  // ── Step 2: Ed25519 signature verification (~100μs) ──
+  let ed25519Valid = true;
+  if (args.signature) {
+    ed25519Valid = PotSigner.verifyPotSignature(args.potHash, {
+      issuerPubKey: args.signature.issuerPubKey,
+      signature: args.signature.signature,
+      issuedAt: BigInt(args.signature.issuedAt),
+    });
   }
 
   const mode = adaptiveSwitch.getCurrentMode() === AdaptiveMode.TURBO ? "turbo" : "full";
 
   return serialize({
-    valid,
+    valid: hmacValid && ed25519Valid,
+    ...(!ed25519Valid && { reason: "Ed25519 signature verification failed" }),
     mode,
     potHash: args.potHash,
     reconstructedBytes: reconstructedSize,
+    checks: { hmac: hmacValid, ed25519: ed25519Valid },
     verifiedAt: Date.now(),
   });
 }

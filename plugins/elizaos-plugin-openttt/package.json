@@ -1,5 +1,5 @@
 {
-  "name": "@helm-protocol/plugin-openttt",
+  "name": "@elizaos/plugin-openttt",
   "version": "0.1.0",
   "description": "OpenTTT Proof-of-Time plugin for ElizaOS — temporal attestation for AI agent transactions",
   "main": "dist/index.js",
@@ -19,7 +19,9 @@
   "peerDependencies": {
     "@elizaos/core": ">=0.1.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "openttt": "^0.2.6"
+  },
   "devDependencies": {
     "@elizaos/core": "^1.7.2",
     "@types/jest": "^29.0.0",

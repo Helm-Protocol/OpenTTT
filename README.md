@@ -1,15 +1,15 @@
 # OpenTTT
 
-> **Reference implementation of [draft-helmprotocol-tttps-02](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)**
+> **Reference implementation of [draft-helmprotocol-tttps-00](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)**
 
-**OpenSSL for Time** — TLS-grade Proof-of-Time for distributed systems.
+**OpenSSL for Transaction Ordering** -- TLS-grade Proof of Time for DeFi.
 
-OpenTTT provides cryptographic proof that an event occurred at a specific time, independently verifiable by anyone without trusting the issuer. Where TLS authenticates *identity*, OpenTTT proves *when*.
+OpenTTT brings cryptographic time verification to blockchain transaction ordering. Where TLS made HTTP trustworthy, OpenTTT makes transaction sequencing verifiable. No trust assumptions. No gentleman's agreements. Physics.
 
 [![npm](https://img.shields.io/npm/v/openttt)](https://www.npmjs.com/package/openttt)
 [![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
 [![CI](https://github.com/Helm-Protocol/OpenTTT/actions/workflows/ci.yml/badge.svg)](https://github.com/Helm-Protocol/OpenTTT/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-99%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-386%20passing%20%C2%B7%2032%20suites-brightgreen)]()
 
 > If this project is useful to you, please [star it on GitHub](https://github.com/Helm-Protocol/OpenTTT) — it helps others find it.
 
@@ -21,46 +21,27 @@ npm install openttt
 
 ## Why OpenTTT
 
-Current timestamp verification relies on **trust**: systems assume servers report accurate times. OpenTTT proves whether they did.
+Current MEV protection relies on **trust**: builders promise fair ordering, protocols ask nicely, and everyone hopes for the best. Flashbots asks builders to behave. OpenTTT proves whether they did.
 
-| | NTP / System Time | OpenTTT |
+| | Flashbots | OpenTTT |
 |---|---|---|
-| **Mechanism** | Trust the server | Cryptographic proof |
-| **Enforcement** | None | Economic + cryptographic |
-| **Forgery** | Trivial | Mathematically detectable (Theorem 0) |
-| **Time source** | Single server | Multi-source Roughtime synthesis |
+| **Mechanism** | Social contract (request) | Physical verification (proof) |
+| **Enforcement** | Reputation, exclusion | Economic natural selection |
+| **Bad actors** | Must be identified and removed | Naturally unprofitable, self-selecting out |
+| **Time source** | Block timestamp (miner-controlled) | Multi-source NTP synthesis (NIST, Google, Apple) |
 
-**The core insight** (Theorem 0 — Inflow-to-Proof): A forged timestamp T′ ≠ T produces a different GRG commitment, causing Ed25519 verification to fail. Issuer timestamp manipulation is mathematically detectable, not merely procedurally controlled.
+**The core insight**: Rollups generate precise timestamps and deliver them to builders with a receipt. The Adaptive GRG pipeline then verifies whether the builder respected that ordering:
 
-```
-GRG_Commitment = GRG(P ‖ D_chain, ctx_id)
-D_chain = SHA-256(k Roughtime attestations, k ≥ 3)
-```
+- **Honest builder**: Sequence matches -> **Turbo mode** (50ms verification) -> faster -> more profitable
+- **Dishonest builder**: Sequence mismatch -> **Full mode** (127ms verification) -> slower -> less profitable -> leaves
 
----
-
-## Why OpenTTT, not Google Roughtime?
-
-A common question: *"Google Roughtime already solves timestamp verification — why do we need OpenTTT?"*
-
-The answer: **Roughtime and OpenTTT operate at completely different points in the lifecycle.**
-
-| | Google Roughtime | OpenTTT |
-|---|---|---|
-| **When it acts** | After the fact | Before state is committed |
-| **What it does** | Proves a timestamp was wrong | Rejects invalid timestamps at ingestion |
-| **Enforcement** | Audit trail only | Cryptographic rejection |
-| **Use case** | Security auditing, forensics | Real-time enforcement |
-
-> Roughtime proves time fraud happened. OpenTTT makes time fraud economically irrational before it can happen.
-
-OpenTTT uses Roughtime as its internal time source (k ≥ 3 servers), then adds the GRG integrity pipeline on top.
+No governance vote. No slashing committee. Cheating is simply bad business.
 
 ---
 
 ## Quick Start
 
-### Try it in 30 seconds
+### Try it in 30 seconds — No ETH, No Wallet
 
 ```typescript
 import { HttpOnlyClient } from "openttt";
@@ -73,18 +54,18 @@ const valid = client.verifyPoT(pot);
 console.log("Valid:", valid); // true
 ```
 
-No external dependencies. Just verified time from independent Roughtime sources (Google, Cloudflare, Chainpoint).
+No blockchain. No wallet. No gas fees. Just verified time from 4 independent HTTPS sources (NIST, Apple, Google, Cloudflare). Start here, upgrade to on-chain when ready.
 
-### Rust SDK
+### On-Chain Mode (Full Power)
 
-```rust
-use openttt::roughtime::{build_chain, verify_chain_against_pot};
+```typescript
+import { TTTClient } from "openttt";
 
-let chain = build_chain(&["roughtime.int.cfturnstile.com:2002"]).await?;
-let result = verify_chain_against_pot(&chain, &pot)?;
-// result.gate2_accepted: bool
-// result.age_ms: u64
+const ttt = await TTTClient.forBase({ privateKey: process.env.OPERATOR_PK! });
+ttt.startAutoMint();
 ```
+
+Connects to Base, synthesizes time from atomic clock sources, and mints Proof-of-Time tokens on-chain.
 
 ---
 
@@ -92,227 +73,342 @@ let result = verify_chain_against_pot(&chain, &pot)?;
 
 OpenTTT is designed around progressive disclosure. Start simple, add control as you need it.
 
+### Level 1 -- Just Works
+
 ```typescript
-// Level 0: Pure verification (no config needed)
-import { HttpOnlyClient } from "openttt";
-const pot = await new HttpOnlyClient().generatePoT();
-
-// Level 1: Custom time sources
 import { TTTClient } from "openttt";
-const ttt = await TTTClient.create({ sources: ["google", "cloudflare"] });
 
-// Level 2: Custom tiers and verification pipeline
-const pot = await ttt.generate({ tier: "T1_block", ctx_id: "my-context" });
-const ok  = await ttt.verify(pot);
+const ttt = await TTTClient.forBase({ privateKey: process.env.OPERATOR_PK! });
+ttt.startAutoMint();
+```
+
+### Level 2 -- Custom Network and Tier
+
+```typescript
+const ttt = await TTTClient.forSepolia({
+  privateKey: process.env.OPERATOR_PK!,
+  rpcUrl: "https://my-rpc.example.com",
+  tier: "T2_slot",
+});
+ttt.startAutoMint();
+```
+
+### Level 3 -- Full Control
+
+```typescript
+const ttt = await TTTClient.create({
+  signer: {
+    type: "turnkey",
+    apiBaseUrl: "https://api.turnkey.com",
+    organizationId: "org-...",
+    privateKeyId: "pk-...",
+    apiPublicKey: "...",
+    apiPrivateKey: "...",
+  },
+  network: "base",
+  tier: "T1_block",
+  contractAddress: "0x...",
+  poolAddress: "0x...",
+  timeSources: ["nist", "google", "cloudflare", "apple"],
+  protocolFeeRate: 0.05,
+  enableGracefulShutdown: true,
+});
+
+ttt.startAutoMint();
 ```
 
 ---
 
 ## Signer Options
 
+OpenTTT abstracts away signer complexity. Use a raw private key for development, TEE-backed keys for production, or cloud HSMs for institutional deployments.
+
 | Type | Use Case | Config |
-|------|----------|--------|
-| `local` | Development, testing | `{ type: "local", privateKey }` |
-| `env` | CI/CD, Docker | `{ type: "env" }` (reads `TTT_PRIVATE_KEY`) |
-| `aws-kms` | Production, key management | `{ type: "aws-kms", keyId }` |
-| `gcp-kms` | GCP deployments | `{ type: "gcp-kms", keyName }` |
+|---|---|---|
+| `privateKey` | Development, small operators | `{ type: "privateKey", key: "0x..." }` or `{ type: "privateKey", envVar: "OPERATOR_PK" }` |
+| `turnkey` | Production, TEE-backed institutional custody | `{ type: "turnkey", apiBaseUrl, organizationId, privateKeyId, apiPublicKey, apiPrivateKey }` |
+| `privy` | Embedded wallets, consumer-facing apps (coming soon) | `{ type: "privy", appId, appSecret }` |
+| `kms` | Cloud HSM (AWS KMS or GCP Cloud KMS) | `{ type: "kms", provider: "aws"\|"gcp", keyId, ... }` |
+
+**AWS KMS** requires `@aws-sdk/client-kms`. **GCP KMS** requires `@google-cloud/kms`. Both are optional peer dependencies -- install only what you use.
 
 ---
 
 ## Tiers
 
-Tiers define the acceptable time window for a PoT. Tighter tiers → stronger guarantees → higher verification cost.
+Tiers control the minting interval. Choose based on your protocol's ordering resolution requirements.
 
-| Tier | Window | Use Case |
-|------|--------|----------|
-| `T0_epoch` | 60,000 ms | Epoch-level ordering |
-| `T1_block` | 2,000 ms | Block-level ordering **(default)** |
-| `T2_slot` | 12,000 ms | Slot-level (L1) |
-| `T3_micro` | 100 ms | High-frequency applications |
+| Tier | Interval | Use Case |
+|---|---|---|
+| `T0_epoch` | 6.4 minutes | Epoch-level ordering (validator sets, beacon chain) |
+| `T1_block` | 2 seconds | Block-level ordering on Base L2 **(default)** |
+| `T2_slot` | 12 seconds | Slot-level ordering on Ethereum L1 |
+| `T3_micro` | 100 milliseconds | High-frequency ordering (IoT, sub-block) |
 
 ```typescript
-const pot = await ttt.generate({ tier: "T1_block" });
+const ttt = await TTTClient.forBase({
+  signer: { type: "privateKey", envVar: "OPERATOR_PK" },
+  tier: "T2_slot",
+});
 ```
 
 ---
 
 ## Health Monitoring
 
-```typescript
-ttt.on("turbo",   () => console.log("TURBO mode — 50ms verification"));
-ttt.on("full",    () => console.log("FULL mode  — 127ms verification"));
-ttt.on("warning", (e) => console.warn(e.message));
+Production deployments need observability. `getHealth()` returns a comprehensive status object covering connectivity, balance, and mint performance.
 
-const health = await ttt.health();
-// { mode: "TURBO", latency_ms: 47, sources: 3 }
+```typescript
+const health = await ttt.getHealth();
+
+console.log(health);
+// {
+//   healthy: true,
+//   checks: {
+//     initialized: true,
+//     rpcConnected: true,
+//     signerAvailable: true,
+//     balanceSufficient: true,
+//     ntpSourcesOk: true
+//   },
+//   metrics: {
+//     mintCount: 142,
+//     mintFailures: 0,
+//     successRate: 1.0,
+//     totalFeesPaid: "71000000000000",
+//     avgMintLatencyMs: 1847,
+//     lastMintAt: "2026-03-14T10:30:00.000Z",
+//     uptimeMs: 86400000
+//   },
+//   alerts: []
+// }
 ```
 
----
+**Alerts** are emitted automatically when:
+- RPC connection is lost
+- ETH balance drops below threshold (default: 0.01 ETH)
+- Mint success rate falls below 80%
 
-## Subgraph Testing
-
-OpenTTT uses The Graph subgraph as a test oracle for end-to-end pipeline validation. The subgraph indexes PoT records and allows integration tests to verify on-chain ordering against cryptographic proofs.
+Register a callback for real-time alerting:
 
 ```typescript
-// Integration test against subgraph
-import { SubgraphVerifier } from "openttt/testing";
-
-const verifier = new SubgraphVerifier({
-  endpoint: "https://api.thegraph.com/subgraphs/name/helm-protocol/openttt"
+ttt.onAlert((alert) => {
+  // Send to PagerDuty, Slack, Telegram, etc.
+  console.error(`[OpenTTT Alert] ${alert}`);
 });
 
-const result = await verifier.verifySequence(transactions);
-// { ordered: true, proof_valid: true, latency_ms: 47 }
+ttt.setMinBalance(ethers.parseEther("0.05")); // Custom threshold
 ```
-
-**[▶ Interactive GRG Pipeline Explainer](https://helm-protocol.github.io/OpenTTT/demo/grg-explainer.html)** — Visual walkthrough of the GRG stages and Byzantine elimination.
 
 ---
 
 ## Networks
 
-| Network | Chain ID | Factory |
-|---------|----------|---------|
-| Testnet | — | `TTTClient.forTestnet(config)` |
-| Custom  | any | `TTTClient.create({ rpcUrl, chainId })` |
+| Network | Chain ID | Factory Method |
+|---|---|---|
+| Base Mainnet | 8453 | `TTTClient.forBase(config)` |
+| Base Sepolia | 84532 | `TTTClient.forSepolia(config)` |
+
+Custom networks can be provided via the `network` field in `TTTClient.create()`:
+
+```typescript
+const ttt = await TTTClient.create({
+  signer: { type: "privateKey", envVar: "OPERATOR_PK" },
+  network: {
+    chainId: 8453,
+    rpcUrl: "https://my-custom-rpc.example.com",
+    tttAddress: "0x...",
+    protocolFeeAddress: "0x...",
+    usdcAddress: "0x...",
+  },
+});
+```
 
 ---
 
 ## API Reference
 
-### Client
+### TTTClient
 
 | Method | Description |
-|--------|-------------|
-| `TTTClient.create(config)` | Create client with explicit config |
-| `TTTClient.forTestnet(config)` | Testnet factory |
-| `ttt.generate(opts?)` | Generate a new PoT |
-| `ttt.verify(pot)` | Verify a PoT (Gate2 + HMAC + Ed25519) |
-| `ttt.health()` | Get current mode and latency |
-| `ttt.startAutoMint()` | Background PoT generation |
-| `ttt.stop()` | Graceful shutdown |
-
-### Verification Pipeline (§4.5, draft-02)
-
-```
-0   Future-timestamp check     < 1 ns
-1a  TLS binding_key verify     ~ 6 µs   (§7.1)
-1b  AEAD early rejection       ~ 1 µs   (§9.8, ChaCha20-Poly1305)
-2   HMAC Gate1                 ~ 6 µs   (context binding)
-3   Ed25519 verify             ~46 µs   (session only, not per-packet)
-4   Recency Gate2              ~  3 ns  (O(1) saturating_sub)
-5   Nonce freshness            ~ 1 µs   (256-bit dedup)
-```
+|---|---|
+| `TTTClient.create(config)` | Create and initialize a client with full configuration |
+| `TTTClient.forBase(config)` | Factory for Base Mainnet (chain ID 8453) |
+| `TTTClient.forSepolia(config)` | Factory for Base Sepolia testnet (chain ID 84532) |
+| `ttt.startAutoMint()` | Start automatic TimeToken minting at the configured tier interval |
+| `ttt.stopAutoMint()` | Stop the auto-mint loop |
+| `ttt.getHealth()` | Returns `HealthStatus` with connectivity, balance, and performance checks |
+| `ttt.getStatus()` | Returns current tier, mint count, fees paid, and token balances |
+| `ttt.listPools()` | List all registered pool addresses |
+| `ttt.getPoolStats(address)` | Get mint/burn statistics for a specific pool |
+| `ttt.onAlert(callback)` | Register a callback for health alerts |
+| `ttt.setMinBalance(wei)` | Set minimum ETH balance threshold for alerts |
+| `ttt.destroy()` | Gracefully shut down: stops minting, unsubscribes events, clears state |
 
 ### TimeSynthesis
 
 | Method | Description |
-|--------|-------------|
-| `TimeSynthesis.synthesize(sources)` | Multi-source time synthesis |
-| `TimeSynthesis.getDigest(pot)` | SHA-256 chain digest for GRG input |
+|---|---|
+| `synthesize()` | Query all configured NTP sources and return a median-synthesized timestamp |
+| `generateProofOfTime()` | Generate a verifiable Proof of Time with source signatures |
+| `verifyProofOfTime(pot)` | Verify that all source readings are within tolerance of the median |
+| `TimeSynthesis.getOnChainHash(pot)` | Keccak256 hash of a PoT for on-chain submission |
+| `TimeSynthesis.serializeToBinary(pot)` | Compact binary serialization for network transport |
+| `TimeSynthesis.deserializeFromBinary(buf)` | Deserialize from binary format |
 
----
+### GrgPipeline
 
-## GRG Integrity Pipeline (§5, draft-02)
+| Method | Description |
+|---|---|
+| `GrgPipeline.processForward(data)` | Encode data through the multi-layer integrity pipeline, producing verifiable shards |
+| `GrgPipeline.processInverse(shards, length)` | Decode shards back to original data with integrity verification |
 
-```
-Encode: Data → [Golomb-Rice G₁] → [Reed-Solomon R] → [Golay(23,12,7) G₂] → [HMAC H] → Shards
-Decode: Shards → [HMAC verify] → [Golay correct] → [RS reconstruct] → [Golomb decompress] → Data
-```
+### AdaptiveSwitch
 
-| Stage | Algorithm | Property |
-|-------|-----------|----------|
-| G₁ | Golomb-Rice (m=16) | Timestamp delta compression |
-| R  | RS GF(2⁸) Vandermonde k=4 n=6 | 33% packet loss tolerance |
-| G₂ | **Golay(23,12,7)** | Perfect binary code · d_min=7 · t=3 · 1.917× |
-| H  | HMAC-SHA256 | Context binding (pool/chain separation) |
-
-**Why G23?** G23 [23,12,7] achieves the Hamming sphere-packing bound exactly (perfect code). Bandwidth 1.917× vs G24's 2.000× — at scale, 4.17% bandwidth savings per shard.
+| Method | Description |
+|---|---|
+| `verifyBlock(block, tttRecord)` | Verify block ordering against TTT record; returns `TURBO` or `FULL` mode |
+| `getCurrentMode()` | Current adaptive mode |
+| `getFeeDiscount()` | Fee discount for current mode (20% in TURBO, 0% in FULL) |
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Helm Issuer (Private)                                  │
-│  grg-core: GRG pipeline + Ed25519 signing              │
-│  POST /v1/pot/generate                                  │
-│  POST /v1/pot/verify                                    │
-└──────────────────────────┬──────────────────────────────┘
-                           │ HTTPS / QUIC (ALPN: tttps/1)
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  OpenTTT (Public — this repo)                           │
-│  src/roughtime/                                         │
-│    chain.rs          Roughtime chain builder            │
-│    pot_crypto.rs     Ed25519 verify + HMAC Gate1       │
-│    wire.rs           TLV parser (draft-19 §5)          │
-│    adaptive_switch   TURBO/FULL state machine          │
-│    quic_transport    §7.2 frame + TLS binding_key      │
-│    no_std_verify     IoT / ARM / FPGA verifier         │
-│  npm: openttt · PyPI: langchain-openttt                │
-│  99 tests · release clean                              │
-└─────────────────────────────────────────────────────────┘
+TTTClient (entry point)
+|-- AutoMintEngine         Periodic minting loop
+|   |-- TimeSynthesis      NTP multi-source median synthesis (NIST, Google, Apple)
+|   |-- DynamicFeeEngine   Oracle-based pricing
+|   |-- EVMConnector       On-chain mint/burn/events (ethers v6)
+|   '-- ProtocolFee        EIP-712 signed fee collection
+|-- AdaptiveSwitch         TURBO/FULL mode state machine
+|-- GRG Pipeline           Multi-layer data integrity (proprietary)
+|-- PoolRegistry           Multi-pool statistics tracking
+'-- Signer Abstraction     PrivateKey | Turnkey | Privy | KMS
 ```
+
+### Data Integrity: GRG Pipeline
+
+GRG is a multi-layer data integrity pipeline that protects PoT payloads — analogous to how the TLS record protocol protects HTTP payloads. It provides compression, erasure coding, and error correction in a single pass.
+
+The pipeline produces verifiable shards that can be independently validated and reconstructed, ensuring PoT integrity even under partial data loss.
+
+> Implementation details are proprietary. See the [IETF Draft](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) for the abstract specification.
+
+### Adaptive Mode Switching
+
+The economic enforcement mechanism uses a sliding window (20 blocks) with hysteresis:
+
+- **Entry to Turbo**: 95% ordering match rate over 20+ blocks
+- **Maintain Turbo**: 85% match rate (relaxed to prevent flapping)
+- **Integrity failure in Turbo**: Exponential backoff penalty (20, 40, 80, 160, 320 blocks)
+
+This asymmetry is deliberate: it is hard to earn trust and easy to lose it.
+
+### Time Synthesis
+
+OpenTTT queries multiple atomic clock-synchronized NTP sources in parallel and produces a median-synthesized timestamp with confidence scoring:
+
+- **NIST** (time.nist.gov) -- US national standard
+- **Apple** (time.apple.com) -- Apple global time service
+- **Google** (time.google.com) -- Leap-smeared public NTP
+
+All readings must fall within a stratum-dependent tolerance of the synthesized median (10ms for stratum 1, 25ms for stratum 2, 50ms for stratum 3+), or the Proof of Time is rejected. Single-source operation triggers a degraded-confidence warning.
 
 ---
 
 ## Error Handling
 
-All SDK errors extend `TTTBaseError`:
+All SDK errors extend `TTTBaseError` and include three fields for actionable diagnostics:
 
 ```typescript
+import { TTTSignerError } from "openttt";
+
 try {
-  const ttt = await TTTClient.create({ ... });
-  await ttt.generate();
+  const ttt = await TTTClient.forBase({
+    signer: { type: "privateKey", envVar: "MISSING_VAR" },
+  });
 } catch (e) {
-  if (e instanceof TTTBaseError) {
-    console.error(e.code);    // "STALE_POT" | "HMAC_FAIL" | "ED25519_FAIL" ...
-    console.error(e.message);
-    console.error(e.context);
+  if (e instanceof TTTSignerError) {
+    console.error(e.message);  // What happened
+    console.error(e.reason);   // Why it happened
+    console.error(e.fix);      // How to fix it
   }
 }
 ```
+
+| Error Class | Scope |
+|---|---|
+| `TTTConfigError` | SDK or engine configuration |
+| `TTTSignerError` | Signer acquisition or usage |
+| `TTTNetworkError` | RPC, chain ID, connectivity |
+| `TTTContractError` | Smart contract interaction |
+| `TTTTimeSynthesisError` | NTP time synthesis failures |
+| `TTTFeeError` | Dynamic fee or protocol fee collection |
 
 ---
 
 ## Graceful Shutdown
 
+For long-running services, enable graceful shutdown to cleanly stop minting and release resources on SIGINT:
+
 ```typescript
-process.on("SIGTERM", async () => {
-  await ttt.stop();
-  process.exit(0);
+const ttt = await TTTClient.create({
+  signer: { type: "privateKey", envVar: "OPERATOR_PK" },
+  network: "base",
+  enableGracefulShutdown: true,
 });
+ttt.startAutoMint();
+
+// Or shut down manually at any time:
+await ttt.destroy();
 ```
 
 ---
 
 ## Requirements
 
-- Node.js 18+
-- Rust 1.82+ (for Rust SDK)
+- Node.js >= 18
+- TypeScript >= 5.3 (for development)
+- Network access to NTP servers (UDP port 123 outbound)
 
----
+**Optional peer dependencies** (install only what you use):
 
-## IETF Draft
-
-This is the reference implementation of `draft-helmprotocol-tttps-02`.
-
-- [IETF Datatracker](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)
-- [Roughtime RFC 9557](https://www.rfc-editor.org/rfc/rfc9557.html)
+| Package | Required for |
+|---|---|
+| `@aws-sdk/client-kms` | AWS KMS signer |
+| `@google-cloud/kms` | GCP Cloud KMS signer |
 
 ---
 
 ## License
 
-BSL-1.1 — see [LICENSE](LICENSE).
+[Business Source License 1.1](LICENSE)
 
-## Contributing
+Copyright 2026 Helm Protocol.
 
-Issues and PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
+---
 
 ## Learn More
 
-- [Draft specification](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)
-- [GRG Pipeline explainer](https://helm-protocol.github.io/OpenTTT/demo/grg-explainer.html)
+- [IETF Draft: draft-helmprotocol-tttps-00](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) — TTTPS Protocol Specification
+- [Yellow Paper](https://github.com/Helm-Protocol/OpenTTT/blob/main/YELLOW_PAPER.md) — Technical Deep Dive
+- [MCP Server](https://github.com/Helm-Protocol/OpenTTT/tree/main/mcp) — AI Agent Integration (`@helm-protocol/ttt-mcp`)
+- [Subgraph (The Graph)](https://api.studio.thegraph.com/query/1744392/openttt-base-sepolia/v0.2.0) — On-chain PoT Data
+- [Base Sepolia Contracts](https://sepolia.basescan.org/address/0xde357135cA493e59680182CDE9E1c6A4dA400811) — TTT ERC-1155
+- [Helm Protocol](https://github.com/Helm-Protocol) — GitHub Organization
+
+[GitHub](https://github.com/Helm-Protocol/OpenTTT) | Built by [Helm Protocol](https://github.com/Helm-Protocol)
+
+---
+
+## Contributing
+
+Contributions are welcome. If you find a bug, have a feature request, or want to improve the documentation, please open an issue or submit a pull request on [GitHub](https://github.com/Helm-Protocol/OpenTTT).
+
+- **Bug reports**: Open an issue with a minimal reproduction case.
+- **Feature requests**: Open an issue describing the use case and expected behavior.
+- **Pull requests**: Fork the repo, make your changes, ensure all tests pass (`npm test`), and open a PR against `main`.
+
+For significant changes, please open an issue first to discuss the approach.
