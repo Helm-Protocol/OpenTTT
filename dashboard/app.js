@@ -12,6 +12,7 @@ const QUERY = `
     stratum
     timestamp
     txHash
+    blockNumber
   }
 }
 `;
@@ -24,61 +25,71 @@ async function fetchData() {
             body: JSON.stringify({ query: QUERY })
         });
         const result = await response.json();
+        const anchors = result.data.poTAnchors;
+        const totalCount = anchors.length;
+        // If we hit the 1000 limit, display "1000+" to signal truncation
+        const displayCount = totalCount >= 1000 ? "1000+" : totalCount;
         return {
-            anchors: result.data.poTAnchors,
-            // Subgraph meta can give us a hint, but we'll use actual count from array or a separate count if available
-            totalCount: result.data.poTAnchors.length 
+            anchors,
+            totalCount,
+            displayCount
         };
     } catch (error) {
         console.error("Failed to fetch data from subgraph:", error);
-        return { anchors: [], totalCount: 0 };
+        return { anchors: [], totalCount: 0, displayCount: 0 };
     }
 }
 
 function updateStats(data) {
-    const { anchors, totalCount } = data;
-    document.getElementById('total-pots').textContent = totalCount;
-    
-    // Calculate unique builders from the actual tx data if builderAddress was available, 
-    // but based on current schema we might only have txHash. 
-    // As a fallback for "Unique Builders", we'll count unique strata or simulate based on tx diversity.
-    const uniqueBuilders = new Set(anchors.map(a => a.txHash)).size; // Temporary proxy
-    document.getElementById('active-builders').textContent = Math.min(uniqueBuilders, 12); // Realistic cap for demo
+    const { anchors, displayCount } = data;
+
+    // Item 6: Show "1000+" if at limit
+    document.getElementById('total-pots').textContent = displayCount;
+
+    // Item 2: grgHash not available in schema — use unique txHash as "Unique GRG Proofs"
+    // txHash is unique per tx, so this gives a meaningful unique-proof count
+    const uniqueGRGProofs = new Set(anchors.map(a => a.txHash)).size;
+    document.getElementById('active-builders').textContent = uniqueGRGProofs;
 }
 
 function updateTable(anchors) {
     const tbody = document.querySelector('#tx-table tbody');
     tbody.innerHTML = '';
-    
+
     anchors.slice(0, 10).forEach(anchor => {
         const tr = document.createElement('tr');
+        // Item 1: basescan link; Item 4: clickable tx hash + blockNumber column
+        const shortHash = anchor.txHash ? anchor.txHash.substring(0, 10) + '...' : 'N/A';
+        const basescanUrl = `https://sepolia.basescan.org/tx/${anchor.txHash}`;
+        const blockNum = anchor.blockNumber ? anchor.blockNumber : '—';
         tr.innerHTML = `
             <td>${anchor.id.substring(0, 8)}...</td>
             <td>${mapStratum(anchor.stratum)}</td>
             <td>${new Date(parseInt(anchor.timestamp) * 1000).toLocaleString()}</td>
-            <td><a href="https://sepolia.etherscan.io/tx/${anchor.txHash}" target="_blank" style="color:#58a6ff">${anchor.txHash.substring(0, 10)}...</a></td>
+            <td><a href="${basescanUrl}" target="_blank" rel="noopener noreferrer" style="color:#58a6ff">${shortHash}</a></td>
+            <td>${blockNum}</td>
         `;
         tbody.appendChild(tr);
     });
 }
 
+// Item 5: Rename "Channel" → "PoT Type"; keep stratum-level label as "Stratum Level"
 function mapStratum(stratum) {
     const s = BigInt(stratum);
-    // Real stratum-based classification
-    // T0_epoch (standard), T1_block (fast), T2_slot (arbitrage), T3_micro (HFT)
-    if (s < 1000n) return "DEX (v4 Hook)";
-    if (s < 1000000n) return "Mint (Direct)";
-    return "MCP (Server)";
+    // Stratum levels — labelled clearly to avoid NTP confusion
+    if (s < 1000n) return "Stratum Level 0";
+    if (s < 1000000n) return "Stratum Level 1";
+    return "Stratum Level 2";
 }
 
 function renderCharts(anchors) {
-    // Channel Breakdown
-    const counts = { DEX: 0, Mint: 0, MCP: 0 };
+    // Item 5: "PoT Type" breakdown (was "Channel Breakdown")
+    const counts = { "Level 0": 0, "Level 1": 0, "Level 2": 0 };
     anchors.forEach(a => {
         const label = mapStratum(a.stratum);
-        if (label.includes("DEX")) counts.DEX++;
-        else if (label.includes("Mint")) counts.Mint++;
-        else counts.MCP++;
+        if (label.includes("Level 0")) counts["Level 0"]++;
+        else if (label.includes("Level 1")) counts["Level 1"]++;
+        else counts["Level 2"]++;
     });
 
     const ctxChannel = document.getElementById('channelChart');
@@ -86,9 +97,9 @@ function renderCharts(anchors) {
     window.channelChartInst = new Chart(ctxChannel, {
         type: 'doughnut',
         data: {
-            labels: ['DEX', 'Mint', 'MCP'],
+            labels: ['Stratum L0', 'Stratum L1', 'Stratum L2'],
             datasets: [{
-                data: [counts.DEX, counts.Mint, counts.MCP],
+                data: [counts["Level 0"], counts["Level 1"], counts["Level 2"]],
                 backgroundColor: ['#58a6ff', '#238636', '#d29922']
             }]
         },
@@ -145,4 +156,4 @@ async function init() {
 }
 
 init();
-setInterval(init, 30000); // Auto-refresh every 30s
+setInterval(init, 10000); // Item 3: Auto-refresh every 10s (was 30s)
