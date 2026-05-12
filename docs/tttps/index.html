@@ -5,67 +5,189 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TTTPS — Byzantine Audit API</title>
   <style>
-    body { font-family: monospace; max-width: 800px; margin: 60px auto; padding: 0 20px; color: #111; background: #fafafa; }
-    h1 { font-size: 1.4rem; font-weight: 600; border-bottom: 1px solid #ddd; padding-bottom: 12px; margin-bottom: 8px; }
-    h2 { font-size: 1rem; margin-top: 32px; color: #333; }
-    pre { background: #f0f0f0; padding: 14px; border-radius: 4px; overflow-x: auto; font-size: 0.85rem; line-height: 1.5; }
-    .tag { color: #666; font-size: 0.8rem; }
-    .badge { display: inline-block; background: #111; color: #fafafa; font-size: 0.75rem; padding: 2px 8px; border-radius: 2px; margin-right: 6px; }
-    a { color: #111; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.85rem; }
-    th { text-align: left; border-bottom: 1px solid #ddd; padding: 6px 8px; color: #555; font-weight: normal; }
-    td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'SF Mono', 'Fira Code', monospace; max-width: 900px; margin: 60px auto; padding: 0 24px; color: #1a1a1a; background: #fafafa; line-height: 1.6; }
+    h1 { font-size: 1.5rem; font-weight: 700; border-bottom: 2px solid #1a1a1a; padding-bottom: 12px; margin-bottom: 6px; }
+    h2 { font-size: 1rem; font-weight: 600; margin-top: 40px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #333; }
+    .tag { color: #666; font-size: 0.8rem; margin-bottom: 32px; display: block; }
+    pre { background: #f0f0f0; padding: 16px; border-radius: 3px; overflow-x: auto; font-size: 0.8rem; margin: 8px 0 16px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 16px; }
+    th { background: #1a1a1a; color: #fff; padding: 8px 12px; text-align: left; font-weight: 600; }
+    td { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #f5f5f5; }
+    .pass { color: #1a1a1a; font-weight: 600; }
+    .layer { color: #555; font-size: 0.78rem; }
+    footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #ddd; color: #888; font-size: 0.78rem; display: flex; justify-content: space-between; }
+    a { color: #1a1a1a; }
+    .section-note { font-size: 0.8rem; color: #555; margin-bottom: 16px; }
   </style>
 </head>
 <body>
-  <h1>TTTPS — Byzantine Audit API</h1>
-  <p class="tag">
-    <span class="badge">PoC</span>
-    Proof-of-Time &middot; Byzantine Detection &middot; GRG Pipeline &middot; Commercial Audit
-  </p>
 
-  <h2>Base URL</h2>
-  <pre>http://35.208.219.178:8080</pre>
+<h1>TTTPS — Byzantine Audit API</h1>
+<span class="tag">Proof-of-Time · Byzantine Detection · GRG Pipeline · Commercial Audit Tool</span>
 
-  <h2>Authentication</h2>
-  <pre>X-API-Key: tttps-dlr-poc-2026</pre>
+<!-- ── ATTACK CAPABILITY MATRIX ───────────────────────────── -->
+<h2>Attack Detection Capability Matrix</h2>
+<p class="section-note">All detected attacks are logged with <code>attack_type</code>, <code>agent_id</code>, <code>ctx_id</code>, and timestamp. Query via <code>GET /audit</code>.</p>
 
-  <h2>Endpoints</h2>
-  <table>
-    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
-    <tr><td>GET</td><td>/health</td><td>Service health check (no auth required)</td></tr>
-    <tr><td>POST</td><td>/pot/generate</td><td>Generate Proof-of-Time token</td></tr>
-    <tr><td>POST</td><td>/pot/verify</td><td>Verify token + Byzantine detection</td></tr>
-    <tr><td>GET</td><td>/audit</td><td>Audit report for a context window</td></tr>
-    <tr><td>GET</td><td>/metrics</td><td>Prometheus metrics</td></tr>
-  </table>
+<table>
+  <thead>
+    <tr>
+      <th>Attack</th>
+      <th>Detection Mechanism</th>
+      <th>GRG Layer</th>
+      <th>Log Field</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Token Replay</strong><br><span class="layer">Reuse of a previously valid PoT token</span></td>
+      <td>seen_tokens HashMap — duplicate token hash detected on verify</td>
+      <td>Application</td>
+      <td><code>REPLAY</code></td>
+    </tr>
+    <tr>
+      <td><strong>Timestamp Drift</strong><br><span class="layer">NTP manipulation, clock skew injection</span></td>
+      <td>±60s window check against server time; Roughtime chain_digest bound into GRG commitment — any timestamp deviation causes commitment mismatch</td>
+      <td>chain_digest → FORGE</td>
+      <td><code>DRIFT</code> / <code>FORGE</code></td>
+    </tr>
+    <tr>
+      <td><strong>Signature Forgery</strong><br><span class="layer">Fake issuer, tampered token body</span></td>
+      <td>Ed25519 signature verification against published pubkey — cryptographically unforgeable without issuer private key</td>
+      <td>Ed25519</td>
+      <td><code>FORGE</code></td>
+    </tr>
+    <tr>
+      <td><strong>Flood / DDoS</strong><br><span class="layer">Request rate abuse, resource exhaustion</span></td>
+      <td>Per-IP and per-agent rate limiting (requests/min); excess requests rejected with 429</td>
+      <td>Application</td>
+      <td><code>FLOOD</code></td>
+    </tr>
+    <tr>
+      <td><strong>Ordering Attack</strong><br><span class="layer">Out-of-sequence token submission</span></td>
+      <td>Fleet cross-reference — token sequence validated across agent set</td>
+      <td>Application</td>
+      <td><code>ORDERING</code></td>
+    </tr>
+    <tr>
+      <td><strong>Cross-Pool Replay</strong><br><span class="layer">Token from Pool A submitted to Pool B</span></td>
+      <td>HMAC key derived from keccak256(ctx_id) — cross-pool commitment mismatch is cryptographically certain</td>
+      <td>HMAC</td>
+      <td><code>FORGE</code></td>
+    </tr>
+    <tr>
+      <td><strong>Sybil Attack</strong><br><span class="layer">Multiple fake agent IDs from same node</span></td>
+      <td>ctx_id HMAC binding — each service context has unique commitment key; cross-context token reuse fails verification</td>
+      <td>HMAC</td>
+      <td><code>FORGE</code></td>
+    </tr>
+    <tr>
+      <td><strong>GPS Spoofing</strong><br><span class="layer">Falsified satellite time signals</span></td>
+      <td>Roughtime chain spans ≥3 independent time sources; single-source GPS spoof creates chain spread violation → commitment diverges</td>
+      <td>chain_digest → FORGE</td>
+      <td><code>FORGE</code></td>
+    </tr>
+    <tr>
+      <td><strong>NTP Injection</strong><br><span class="layer">Rogue NTP server, synchronized clock bias</span></td>
+      <td>Roughtime chain_digest is GRG-committed alongside payload — manipulated timestamp shifts chain_digest, breaking Ed25519 signature</td>
+      <td>chain_digest → Ed25519</td>
+      <td><code>FORGE</code></td>
+    </tr>
+    <tr>
+      <td><strong>BGP Hijacking</strong><br><span class="layer">Route manipulation, man-in-the-middle</span></td>
+      <td>Intercepted tokens cannot be re-signed without issuer private key — any modification invalidates Ed25519 signature</td>
+      <td>Ed25519</td>
+      <td><code>FORGE</code></td>
+    </tr>
+    <tr>
+      <td><strong>DNS Poisoning</strong><br><span class="layer">Redirected API endpoint, fake issuer</span></td>
+      <td>Issuer pubkey is pinned and published out-of-band; tokens from any other key fail Ed25519 verification</td>
+      <td>Ed25519</td>
+      <td><code>FORGE</code></td>
+    </tr>
+    <tr>
+      <td><strong>SDN Flow Manipulation</strong><br><span class="layer">Packet reordering via SDN controller</span></td>
+      <td>ORDERING cross-reference detects sequence anomalies; GRG Reed-Solomon layer recovers partial data corruption</td>
+      <td>RS(4,6) + ORDERING</td>
+      <td><code>ORDERING</code></td>
+    </tr>
+    <tr>
+      <td><strong>Protocol Violation</strong><br><span class="layer">Malformed token, missing fields</span></td>
+      <td>Schema validation on all fields; Golay(23,12,7) ECC detects bit-level corruption</td>
+      <td>Golay G₂</td>
+      <td><code>INVALID</code></td>
+    </tr>
+  </tbody>
+</table>
 
-  <h2>Health</h2>
-  <pre>curl http://35.208.219.178:8080/health</pre>
+<!-- ── GRG PIPELINE ───────────────────────────────────────── -->
+<h2>GRG Pipeline</h2>
+<p class="section-note">All attacks ultimately converge to a commitment mismatch, caught at the Ed25519 layer.</p>
+<pre>Input Payload (P)
+  └─ G₁: Golomb-Rice compression
+      └─ R:  Reed-Solomon (4,6) — 2 parity shards, tolerates 2 shard loss
+          └─ G₂: Golay(23,12,7) ECC — corrects ≤3 bit errors per codeword
+              └─ H:  HMAC-SHA256 (key = keccak256(ctx_id)) — context binding
+                  └─ GRG_Commitment = SHA-256(G₂(R(G₁(P ‖ chain_digest)), ctx_id))
+                      └─ Ed25519 signature over GRG_Commitment</pre>
 
-  <h2>Generate PoT Token</h2>
-  <pre>curl -X POST http://35.208.219.178:8080/pot/generate \
-  -H "X-API-Key: tttps-dlr-poc-2026" \
-  -H "Content-Type: application/json" \
-  -d '{"agent_id":"dlr-aipx-01","ctx_id":"dlr-poc"}'</pre>
-
-  <h2>Verify + Byzantine Detection</h2>
-  <pre>curl -X POST http://35.208.219.178:8080/pot/verify \
-  -H "X-API-Key: tttps-dlr-poc-2026" \
-  -H "Content-Type: application/json" \
-  -d '{"token":"&lt;token_from_generate&gt;","agent_id":"dlr-aipx-01","ctx_id":"dlr-poc"}'</pre>
-
-  <h2>Audit Report</h2>
-  <pre>curl "http://35.208.219.178:8080/audit?ctx_id=dlr-poc&amp;window=3600" \
+<!-- ── AUDIT LOG FORMAT ──────────────────────────────────── -->
+<h2>Audit Log — GET /audit</h2>
+<pre>curl "http://35.208.219.178:8080/audit?ctx_id=dlr-poc&window=3600" \
   -H "X-API-Key: tttps-dlr-poc-2026"</pre>
 
-  <h2>Prometheus Metrics</h2>
-  <pre>curl http://35.208.219.178:8080/metrics</pre>
+<pre>{
+  "ctx_id": "dlr-poc",
+  "window_secs": 3600,
+  "total_requests": 142,
+  "byzantine_total": 3,
+  "byzantine_ratio": 0.021,
+  "attack_breakdown": {
+    "REPLAY":   2,
+    "DRIFT":    1,
+    "FORGE":    0,
+    "FLOOD":    0,
+    "ORDERING": 0,
+    "INVALID":  0
+  }
+}</pre>
 
-  <p class="tag" style="margin-top:48px; border-top:1px solid #ddd; padding-top:16px;">
-    <a href="https://github.com/Helm-Protocol/OpenTTT">GitHub</a> &middot;
-    <a href="https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/">IETF Draft</a> &middot;
-    Helm Protocol 2026
-  </p>
+<!-- ── PROMETHEUS METRICS ─────────────────────────────────── -->
+<h2>Prometheus Metrics — GET /metrics</h2>
+<pre>tttps_attack_total{type="replay"}   2
+tttps_attack_total{type="drift"}    1
+tttps_attack_total{type="forge"}    0
+tttps_byzantine_ratio               0.021
+tttps_valid_count                   139</pre>
+
+<!-- ── QUICK START ────────────────────────────────────────── -->
+<h2>Quick Start</h2>
+<pre># 1. Health check
+curl http://35.208.219.178:8080/health
+
+# 2. Generate PoT token
+curl -X POST http://35.208.219.178:8080/pot/generate \
+  -H "X-API-Key: tttps-dlr-poc-2026" \
+  -H "Content-Type: application/json" \
+  -d '{"agent_id":"dlr-aipx-01","ctx_id":"dlr-poc"}'
+
+# 3. Verify + Byzantine detection
+curl -X POST http://35.208.219.178:8080/pot/verify \
+  -H "X-API-Key: tttps-dlr-poc-2026" \
+  -H "Content-Type: application/json" \
+  -d '{"token":"&lt;token&gt;","agent_id":"dlr-aipx-01","ctx_id":"dlr-poc"}'
+
+# 4. Audit report
+curl "http://35.208.219.178:8080/audit?ctx_id=dlr-poc&window=3600" \
+  -H "X-API-Key: tttps-dlr-poc-2026"</pre>
+
+<footer>
+  <span><a href="https://github.com/Helm-Protocol/OpenTTT">GitHub</a> · <a href="https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/">IETF Draft</a></span>
+  <span>Helm Protocol · 2026</span>
+</footer>
+
 </body>
 </html>
