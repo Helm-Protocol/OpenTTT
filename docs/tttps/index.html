@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TTTPS — Byzantine Audit API</title>
+  <style>
+    body { font-family: monospace; max-width: 800px; margin: 60px auto; padding: 0 20px; color: #111; background: #fafafa; }
+    h1 { font-size: 1.4rem; font-weight: 600; border-bottom: 1px solid #ddd; padding-bottom: 12px; margin-bottom: 8px; }
+    h2 { font-size: 1rem; margin-top: 32px; color: #333; }
+    pre { background: #f0f0f0; padding: 14px; border-radius: 4px; overflow-x: auto; font-size: 0.85rem; line-height: 1.5; }
+    .tag { color: #666; font-size: 0.8rem; }
+    .badge { display: inline-block; background: #111; color: #fafafa; font-size: 0.75rem; padding: 2px 8px; border-radius: 2px; margin-right: 6px; }
+    a { color: #111; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.85rem; }
+    th { text-align: left; border-bottom: 1px solid #ddd; padding: 6px 8px; color: #555; font-weight: normal; }
+    td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+  </style>
+</head>
+<body>
+  <h1>TTTPS — Byzantine Audit API</h1>
+  <p class="tag">
+    <span class="badge">PoC</span>
+    Proof-of-Time &middot; Byzantine Detection &middot; GRG Pipeline &middot; Commercial Audit
+  </p>
+
+  <h2>Base URL</h2>
+  <pre>http://35.208.219.178:8080</pre>
+
+  <h2>Authentication</h2>
+  <pre>X-API-Key: tttps-dlr-poc-2026</pre>
+
+  <h2>Endpoints</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td>GET</td><td>/health</td><td>Service health check (no auth required)</td></tr>
+    <tr><td>POST</td><td>/pot/generate</td><td>Generate Proof-of-Time token</td></tr>
+    <tr><td>POST</td><td>/pot/verify</td><td>Verify token + Byzantine detection</td></tr>
+    <tr><td>GET</td><td>/audit</td><td>Audit report for a context window</td></tr>
+    <tr><td>GET</td><td>/metrics</td><td>Prometheus metrics</td></tr>
+  </table>
+
+  <h2>Health</h2>
+  <pre>curl http://35.208.219.178:8080/health</pre>
+
+  <h2>Generate PoT Token</h2>
+  <pre>curl -X POST http://35.208.219.178:8080/pot/generate \
+  -H "X-API-Key: tttps-dlr-poc-2026" \
+  -H "Content-Type: application/json" \
+  -d '{"agent_id":"dlr-aipx-01","ctx_id":"dlr-poc"}'</pre>
+
+  <h2>Verify + Byzantine Detection</h2>
+  <pre>curl -X POST http://35.208.219.178:8080/pot/verify \
+  -H "X-API-Key: tttps-dlr-poc-2026" \
+  -H "Content-Type: application/json" \
+  -d '{"token":"&lt;token_from_generate&gt;","agent_id":"dlr-aipx-01","ctx_id":"dlr-poc"}'</pre>
+
+  <h2>Audit Report</h2>
+  <pre>curl "http://35.208.219.178:8080/audit?ctx_id=dlr-poc&amp;window=3600" \
+  -H "X-API-Key: tttps-dlr-poc-2026"</pre>
+
+  <h2>Prometheus Metrics</h2>
+  <pre>curl http://35.208.219.178:8080/metrics</pre>
+
+  <p class="tag" style="margin-top:48px; border-top:1px solid #ddd; padding-top:16px;">
+    <a href="https://github.com/Helm-Protocol/OpenTTT">GitHub</a> &middot;
+    <a href="https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/">IETF Draft</a> &middot;
+    Helm Protocol 2026
+  </p>
+</body>
+</html>
