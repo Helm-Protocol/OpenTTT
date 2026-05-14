@@ -136,8 +136,8 @@
 
 <!-- ── AUDIT LOG FORMAT ──────────────────────────────────── -->
 <h2>Audit Log — GET /audit</h2>
-<pre>curl "http://35.208.219.178:8080/audit?ctx_id=dlr-poc&window=3600" \
-  -H "X-API-Key: tttps-dlr-poc-2026"</pre>
+<pre>curl "https://api.kenosian.com/audit?ctx_id=dlr-poc&window=3600" \
+  -H "X-API-Key: &lt;your-api-key&gt;"</pre>
 
 <pre>{
   "ctx_id": "dlr-poc",
@@ -166,27 +166,27 @@ tttps_valid_count                   139</pre>
 <!-- ── QUICK START ────────────────────────────────────────── -->
 <h2>Quick Start</h2>
 <pre># 1. Health check
-curl http://35.208.219.178:8080/health
+curl https://api.kenosian.com/health
 
 # 2. Generate PoT token
-curl -X POST http://35.208.219.178:8080/pot/generate \
-  -H "X-API-Key: tttps-dlr-poc-2026" \
+curl -X POST https://api.kenosian.com/pot/generate \
+  -H "X-API-Key: &lt;your-api-key&gt;" \
   -H "Content-Type: application/json" \
   -d '{"agent_id":"dlr-aipx-01","ctx_id":"dlr-poc"}'
 
 # 3. Verify + Byzantine detection
-curl -X POST http://35.208.219.178:8080/pot/verify \
-  -H "X-API-Key: tttps-dlr-poc-2026" \
+curl -X POST https://api.kenosian.com/pot/verify \
+  -H "X-API-Key: &lt;your-api-key&gt;" \
   -H "Content-Type: application/json" \
   -d '{"token":"&lt;token&gt;","agent_id":"dlr-aipx-01","ctx_id":"dlr-poc"}'
 
 # 4. Audit report
-curl "http://35.208.219.178:8080/audit?ctx_id=dlr-poc&window=3600" \
-  -H "X-API-Key: tttps-dlr-poc-2026"</pre>
+curl "https://api.kenosian.com/audit?ctx_id=dlr-poc&window=3600" \
+  -H "X-API-Key: &lt;your-api-key&gt;"</pre>
 
 <footer>
   <span><a href="https://github.com/Helm-Protocol/OpenTTT">GitHub</a> · <a href="https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/">IETF Draft</a></span>
-  <span>Helm Protocol · 2026</span>
+  <span>API key on request: <a href="mailto:heime.jorgen@proton.me">heime.jorgen@proton.me</a> · Helm Protocol · 2026</span>
 </footer>
 
 </body>
