@@ -155,13 +155,19 @@
   }
 }</pre>
 
-<!-- ── PROMETHEUS METRICS ─────────────────────────────────── -->
-<h2>Prometheus Metrics — GET /metrics</h2>
+<!-- ── MONITORING ──────────────────────────────────────────── -->
+<h2>Monitoring</h2>
+<p class="section-note">Live Byzantine detection metrics. No authentication required.</p>
+
+<pre>curl https://api.kenosian.com/metrics</pre>
+
 <pre>tttps_attack_total{type="replay"}   2
 tttps_attack_total{type="drift"}    1
 tttps_attack_total{type="forge"}    0
 tttps_byzantine_ratio               0.021
 tttps_valid_count                   139</pre>
+
+<p class="section-note">Grafana dashboard: <a href="https://kenosian.com/grafana">https://kenosian.com/grafana</a></p>
 
 <!-- ── QUICK START ────────────────────────────────────────── -->
 <h2>Quick Start</h2>
