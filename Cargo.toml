@@ -1,3 +1,5 @@
+[workspace]
+
 [package]
 name    = "openttt"
 version = "0.2.13"
