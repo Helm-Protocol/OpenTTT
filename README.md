@@ -231,12 +231,25 @@ try {
 
 ---
 
+## Pricing
+
+| Tier | Price | Quota | Use Case |
+|---|---|---|---|
+| **FREE** | $0 | 100 calls/day | Non-commercial, research, personal bots (revenue < $10K/yr) |
+| **BOT** | $199/mo | 5M calls · 1K req/s | MEV bots, arbitrage bots |
+| **DEX/LP** | $499/mo | 20M calls + overage | DEX protocols, liquidity providers |
+| **FUND** | $2,000+/mo | Unlimited + MiFIR Art.22c audit log | Hedge funds, OTC desks, prop trading |
+
+API key & commercial licensing: heime.jorgen@proton.me
+
+---
+
 ## License
 
 BSL-1.1 — free for non-commercial use.
 
 **Commercial use** (production bots, hedge funds, prop desks) requires a license.  
-→ [kenosian.com/pricing](https://kenosian.com/pricing)
+→ [Pricing](https://github.com/Helm-Protocol/openttt-mcp#pricing)
 
 Change Date: 2029-05-28 → Apache 2.0
 

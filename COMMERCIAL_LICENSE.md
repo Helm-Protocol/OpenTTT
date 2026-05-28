@@ -9,8 +9,8 @@ openttt is licensed under BSL-1.1. Commercial use requires a license.
 - Any use generating > $10,000/yr revenue
 
 ## How to get a commercial license
-Contact: peter@kenosian.com
-Website: https://kenosian.com/pricing
+Contact: heime.jorgen@proton.me
+Website: https://github.com/Helm-Protocol/openttt-mcp#pricing
 
 ## Free use (no license required)
 - Research and academic use
