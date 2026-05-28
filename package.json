@@ -100,6 +100,7 @@
   "overrides": {
     "defu": ">=6.1.4",
     "picomatch": ">=4.0.2",
-    "handlebars": ">=4.7.9"
+    "handlebars": ">=4.7.9",
+    "ws": ">=8.21.0"
   }
 }
