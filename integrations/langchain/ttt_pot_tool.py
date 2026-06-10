@@ -6,7 +6,7 @@ Proves ordering without trusting a single time source.
 Uses 4 independent HTTPS time sources (NIST, Apple, Google, Cloudflare)
 with a 3-layer integrity pipeline for Byzantine resistance.
 
-IETF Draft: draft-helmprotocol-tttps-00
+IETF Draft: draft-helmprotocol-tttps
 npm: openttt@0.2.0 | GitHub: Helm-Protocol/OpenTTT
 """
 

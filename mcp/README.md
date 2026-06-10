@@ -1,6 +1,6 @@
 # @helm-protocol/ttt-mcp
 
-> Reference implementation of [draft-helmprotocol-tttps-00](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) (IETF Experimental)
+> Reference implementation of [draft-helmprotocol-tttps](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) (IETF Experimental)
 
 **MCP Server for OpenTTT — Proof of Time tools for AI agents**
 
@@ -147,7 +147,7 @@ Config file locations:
 ## Learn More
 
 - [OpenTTT SDK](https://www.npmjs.com/package/openttt) — The underlying SDK
-- [IETF Draft: draft-helmprotocol-tttps-00](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) — TTTPS Protocol Specification
+- [IETF Draft: draft-helmprotocol-tttps](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) — TTTPS Protocol Specification
 - [Helm Protocol](https://github.com/Helm-Protocol) — GitHub
 
 ## License

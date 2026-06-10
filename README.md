@@ -1,6 +1,6 @@
 # OpenTTT
 
-> **Reference implementation of [draft-helmprotocol-tttps-00](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)**
+> **Reference implementation of [draft-helmprotocol-tttps](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/)**
 
 **Cryptographic Proof-of-Time for Distributed Systems** — TLS-grade time verification without trust assumptions.
 
@@ -151,7 +151,7 @@ The enforcement mechanism uses a sliding-window match rate with hysteresis:
 
 ## IETF Draft
 
-OpenTTT implements **draft-helmprotocol-tttps-00** (TTTPS — TLS-grade Time Token Protocol Stack).
+OpenTTT implements **draft-helmprotocol-tttps** (TTTPS — TLS-grade Time Token Protocol Stack).
 
 > **Abstract**: This document specifies TTTPS, a protocol for generating and verifying cryptographic Proof-of-Time (PoT) tokens using multiple independent time sources. TTTPS provides Byzantine fault tolerance against timestamp manipulation, supports 13 categories of time-based attacks, and is designed for integration into existing transport-layer security stacks without requiring changes to application protocols.
 
@@ -259,7 +259,7 @@ Full license text: [LICENSE](LICENSE) — Copyright 2026 Helm Protocol.
 
 ## Links
 
-- [IETF Draft: draft-helmprotocol-tttps-00](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) — Protocol specification
+- [IETF Draft: draft-helmprotocol-tttps](https://datatracker.ietf.org/doc/draft-helmprotocol-tttps/) — Protocol specification
 - [Helm Protocol GitHub](https://github.com/Helm-Protocol) — Organization and repositories
 
 ---
