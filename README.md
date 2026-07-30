@@ -40,7 +40,7 @@ No governance vote. No slashing committee. Cheating is simply bad engineering.
 
 ## Product Suite
 
-OpenTTT is the open-source core of the Helm Protocol product family. The full suite:
+OpenTTT is the source-available (BSL-1.1) core of the Helm Protocol product family. The full suite:
 
 | Product | Description | Key Metric |
 |---|---|---|
