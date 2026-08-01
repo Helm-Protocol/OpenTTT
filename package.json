@@ -49,6 +49,8 @@
     "dist/networks.d.ts",
     "dist/osnma_source.js",
     "dist/osnma_source.d.ts",
+    "dist/roughtime_source.js",
+    "dist/roughtime_source.d.ts",
     "dist/pool_registry.js",
     "dist/pool_registry.d.ts",
     "dist/pot_frame.js",

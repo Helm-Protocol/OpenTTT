@@ -33,9 +33,9 @@ describe("TimeSynthesis — uncovered branches", () => {
       expect(ts["sources"][0].name).toBe("cloudflare");
     });
 
-    test("default sources are nist, google, cloudflare, apple", () => {
+    test("default sources are nist, google, cloudflare, apple, plus 4 Roughtime servers (2026-08-01: added Roughtime sources for reliability, see roughtime_source.test.ts)", () => {
       const ts = new TimeSynthesis();
-      expect(ts["sources"].length).toBe(4);
+      expect(ts["sources"].length).toBe(8);
     });
 
     test("unknown source name is silently skipped", () => {

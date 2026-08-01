@@ -6,6 +6,7 @@ import { keccak256, AbiCoder } from "ethers";
 import { TimeReading, SynthesizedTime, ProofOfTime } from "./types";
 import { logger } from "./logger";
 import { TTTTimeSynthesisError, ERROR_CODES } from "./errors";
+import { RoughtimeSource, ROUGHTIME_SERVERS } from "./roughtime_source";
 
 export interface TimeSource {
   name: string;
@@ -197,8 +198,23 @@ export class TimeSynthesis {
   private readonly MAX_NONCE_CACHE = 10000;
   private readonly NONCE_TTL_MS = 300_000; // 5 minutes — must exceed PoT expiresAt (60s) to prevent edge-case replay
 
+  // Default source list, 2026-08-01: HTTPS Date-header sources (unsigned,
+  // TLS-transport-only trust) PLUS Roughtime sources (Ed25519-signed time
+  // reports, cryptographically verifiable). Additive/backward-compatible —
+  // the original 4 HTTPS name strings keep working exactly as before; this
+  // only grows the *default* pool so that in practice >=3 readings still
+  // succeed even when specific HTTPS endpoints (Cloudflare, NIST — measured
+  // directly this session to be unreliable from some networks, matching
+  // Jay's report that Cloudflare's HTTPS time endpoint is unreliable more
+  // generally) are flaky or blocked. See roughtime_source.ts's file header
+  // for the live verification behind this.
+  private static readonly DEFAULT_SOURCE_NAMES = [
+    'nist', 'google', 'cloudflare', 'apple',
+    'roughtime-int08h', 'roughtime-cloudflare', 'roughtime-se', 'roughtime-txryan',
+  ];
+
   constructor(config?: { sources?: string[] }) {
-    const sourceNames = config?.sources || ['nist', 'google', 'cloudflare', 'apple'];
+    const sourceNames = config?.sources || TimeSynthesis.DEFAULT_SOURCE_NAMES;
 
     for (const s of sourceNames) {
       if (s === 'nist') {
@@ -209,6 +225,20 @@ export class TimeSynthesis {
         this.sources.push(new HTTPSTimeSource('cloudflare', 'https://time.cloudflare.com/'));
       } else if (s === 'apple') {
         this.sources.push(new HTTPSTimeSource('apple', 'https://time.apple.com/'));
+      } else if (s === 'roughtime') {
+        // Convenience alias: fans out to every configured Roughtime server
+        // (each still contributes/fails its OWN independent reading, same
+        // as the named HTTPS sources — this alias just saves callers from
+        // listing all 4 explicitly).
+        for (const cfg of ROUGHTIME_SERVERS) {
+          this.sources.push(new RoughtimeSource(cfg.name, cfg.host, cfg.port, cfg.pubkeyB64));
+        }
+      } else {
+        const rtCfg = ROUGHTIME_SERVERS.find((c) => c.name === s);
+        if (rtCfg) {
+          this.sources.push(new RoughtimeSource(rtCfg.name, rtCfg.host, rtCfg.port, rtCfg.pubkeyB64));
+        }
+        // Unknown names are silently skipped, matching pre-existing behavior.
       }
     }
   }
