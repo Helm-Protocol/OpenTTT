@@ -384,6 +384,9 @@ export class TimeSynthesis {
    *   Stratum 1:  10ms (10_000_000ns) - atomic clock direct
    *   Stratum 2:  25ms (25_000_000ns) - NTP server synced to stratum 1
    *   Stratum 3+: 50ms (50_000_000ns) - downstream NTP
+   *
+   * Only used as a floor now (see verifyProofOfTime) — kept for the
+   * homogeneous-source case and for any caller still relying on it.
    */
   private static getToleranceForStratum(stratum: number): bigint {
     if (stratum <= 1) return 10_000_000n;
@@ -403,7 +406,7 @@ export class TimeSynthesis {
         lowestStratum = reading.stratum;
       }
     }
-    const toleranceNs = TimeSynthesis.getToleranceForStratum(lowestStratum);
+    const floorToleranceNs = TimeSynthesis.getToleranceForStratum(lowestStratum);
 
     // Expiration check
     if (BigInt(Date.now()) > pot.expiresAt) {
@@ -432,6 +435,20 @@ export class TimeSynthesis {
 
     for (const sig of pot.sourceReadings) {
       const diff = sig.timestamp > pot.timestamp ? sig.timestamp - pot.timestamp : pot.timestamp - sig.timestamp;
+      // Per-reading tolerance = max(stratum floor, this reading's own declared
+      // uncertainty). A single blanket stratum-derived tolerance assumed all
+      // sources have comparable precision; that broke the moment a genuinely
+      // coarser-but-cryptographically-signed source (Roughtime, RADI on the
+      // order of 1-5s on real servers, honestly reported as ms in
+      // TimeReading.uncertainty) joined a source pool alongside ~ms-precision
+      // HTTPS/NTP sources — every real Roughtime reading would fail a 25ms
+      // stratum-2 floor and the whole PoT would false-negative into offline
+      // fallback (measured directly: sources dropped to 0 after adding
+      // Roughtime, worse than before it existed). Using each reading's own
+      // uncertainty as a floor lets honestly-coarse sources still pass
+      // self-verification without loosening the check for precise ones.
+      const ownToleranceNs = BigInt(Math.round(sig.uncertainty * 1_000_000));
+      const toleranceNs = ownToleranceNs > floorToleranceNs ? ownToleranceNs : floorToleranceNs;
       if (diff > toleranceNs) {
         logger.warn(`[TimeSynthesis] Reading from ${sig.source} outside tolerance (${toleranceNs}ns, stratum ${lowestStratum}): ${diff}ns`);
         return false;
